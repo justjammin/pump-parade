@@ -1,0 +1,15 @@
+{
+  "name": "pump-parade-bake-runner",
+  "private": true,
+  "type": "module",
+  "description": "Bakes a rigged Meshy GLB into the runner sprite data embedded in index.html.",
+  "scripts": {
+    "bake": "node bake.mjs"
+  },
+  "dependencies": {
+    "@gltf-transform/core": "4.2.1",
+    "playwright-core": "1.56.1",
+    "sharp": "0.34.4",
+    "three": "0.160.0"
+  }
+}

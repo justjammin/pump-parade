@@ -1,0 +1,132 @@
+<!doctype html>
+<meta charset="utf-8">
+<script type="importmap">{ "imports": { "three": "./three/build/three.module.js", "three/addons/": "./three/examples/jsm/" } }</script>
+<script type="module">
+import * as THREE from 'three';
+import { loadRunner, poseArms } from './rig.js';
+
+// Sprite pixels per figure unit. index.html draws a figure 193 units tall, so the 1.8 m model maps 1.8 / 193 m per unit.
+const SCALE = 1.4, UNIT = 1.8 / 193, SS = 2, ELEV = 0.17;
+const RUN = 12, PHASES = 6, SHEET_W = 2048;
+const BOX = { l: -135, r: 135, t: -240, b: 16 };
+const FW = Math.round((BOX.r - BOX.l) * SCALE), FH = Math.round((BOX.b - BOX.t) * SCALE), W2 = FW * SS, H2 = FH * SS;
+// Outline: ink wherever empty space or a surface at least DEPTH_GAP metres nearer lies within INK_R supersampled pixels.
+const INK_R = 6, NEAR = 3, FAR = 7, DEPTH_GAP = 0.05;
+
+// Each texel of Meshy's flat-colour texture becomes a recolour class: 0 ink (shoes), 1 skin, 2 light skin, 3 hair, 4 trunks.
+function classTexture(tex) {
+  const c = document.createElement('canvas');
+  c.width = tex.image.width; c.height = tex.image.height;
+  const g = c.getContext('2d');
+  g.drawImage(tex.image, 0, 0);
+  const img = g.getImageData(0, 0, c.width, c.height), p = img.data;
+  for (let i = 0; i < p.length; i += 4) {
+    const R = p[i], G = p[i + 1], B = p[i + 2], lum = 0.3 * R + 0.59 * G + 0.11 * B;
+    const cls = R > 170 && G < 110 && B > 60 ? 4 : Math.max(R, G, B) < 75 ? (R - B > 22 ? 3 : 0) : lum > 160 ? 2 : 1;
+    p.set([cls * 60, 0, 0, 255], i);
+  }
+  g.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(c);
+  t.flipY = tex.flipY; t.colorSpace = THREE.NoColorSpace; t.generateMipmaps = false;
+  t.magFilter = t.minFilter = THREE.NearestFilter;
+  return t;
+}
+
+const DISK = [];
+for (let y = -INK_R; y <= INK_R; y++) for (let x = -INK_R; x <= INK_R; x++) if (x * x + y * y <= INK_R * INK_R && (x || y)) DISK.push([x, y]);
+
+window.bake = async () => {
+  const r = await loadRunner('runner.glb');
+  const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, preserveDrawingBuffer: true });
+  renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
+  renderer.setPixelRatio(1); renderer.setSize(W2, H2); renderer.setClearColor(0, 0);
+  const gl = renderer.getContext();
+  const scene = new THREE.Scene();
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x7a6a90, 1.6), sun = new THREE.DirectionalLight(0xffffff, 1.5);
+  sun.position.set(1.5, 3, -2.5);
+  scene.add(r.model, hemi, sun);
+  const cam = new THREE.OrthographicCamera(BOX.l * UNIT, BOX.r * UNIT, -BOX.t * UNIT, -BOX.b * UNIT, NEAR, FAR);
+  cam.position.set(0, 5 * Math.sin(ELEV), -5 * Math.cos(ELEV)); cam.lookAt(0, 0, 0);
+  cam.updateMatrixWorld(); cam.updateProjectionMatrix();
+  const mats = {
+    cls: new THREE.MeshBasicMaterial({ map: classTexture(r.body.material.map) }),
+    light: new THREE.MeshLambertMaterial({ color: 0xffffff }),
+    depth: new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }),
+  };
+  const pass = mat => {
+    r.body.material = mat;
+    renderer.render(scene, cam);
+    const buf = new Uint8Array(W2 * H2 * 4);
+    gl.readPixels(0, 0, W2, H2, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+    return buf;
+  };
+  const gap = DEPTH_GAP / (FAR - NEAR), unpack = [1 / 256 ** 3, 1 / 256 ** 2, 1 / 256, 1].map(f => f * 255 / 256 / 255);
+
+  function renderFrame(time, pose) {
+    r.mixer.setTime(time);
+    r.model.updateMatrixWorld(true);
+    if (pose) poseArms(r, pose);
+    const cls = pass(mats.cls), lit = pass(mats.light), dep = pass(mats.depth);
+    // GL rows run bottom-up; flip into a top-down depth map with +Infinity for empty pixels.
+    const depth = new Float32Array(W2 * H2), at = (x, y) => ((H2 - 1 - y) * W2 + x) * 4;
+    for (let y = 0; y < H2; y++) for (let x = 0; x < W2; x++) {
+      const k = at(x, y);
+      depth[y * W2 + x] = cls[k + 3] ? dep[k] * unpack[0] + dep[k + 1] * unpack[1] + dep[k + 2] * unpack[2] + dep[k + 3] * unpack[3] : Infinity;
+    }
+    const ink = new Uint8Array(W2 * H2);
+    for (let y = 0; y < H2; y++) for (let x = 0; x < W2; x++) {
+      const d = depth[y * W2 + x];
+      for (const [dx, dy] of DISK) {
+        const xx = x + dx, yy = y + dy;
+        if (xx < 0 || yy < 0 || xx >= W2 || yy >= H2) continue;
+        if (depth[yy * W2 + xx] < d - gap) { ink[y * W2 + x] = 1; break; }
+      }
+    }
+    // Downsample SSxSS blocks: majority class, mean shade, coverage as alpha.
+    const out = new Uint8ClampedArray(FW * FH * 4);
+    for (let y = 0; y < FH; y++) for (let x = 0; x < FW; x++) {
+      const votes = [0, 0, 0, 0, 0];
+      let cov = 0, shade = 0;
+      for (let j = 0; j < SS; j++) for (let i = 0; i < SS; i++) {
+        const sx = x * SS + i, sy = y * SS + j, k = at(sx, sy);
+        if (ink[sy * W2 + sx]) { cov++; votes[0]++; continue; }
+        if (!cls[k + 3]) continue;
+        cov++; votes[Math.round(cls[k] / 60)]++;
+        shade += 0.3 * lit[k] + 0.59 * lit[k + 1] + 0.11 * lit[k + 2];
+      }
+      if (!cov) continue;
+      const o = (y * FW + x) * 4, c = votes.indexOf(Math.max(...votes)), lights = cov - votes[0];
+      out.set([c * 60, lights ? shade / lights : 200, 0, cov / (SS * SS) * 255], o);
+    }
+    return out;
+  }
+
+  const crop = px => {
+    let x0 = FW, y0 = FH, x1 = -1, y1 = -1;
+    for (let y = 0; y < FH; y++) for (let x = 0; x < FW; x++) if (px[(y * FW + x) * 4 + 3]) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+    return { x0, y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
+  };
+  const feet = new THREE.Vector3().project(cam), ax = (feet.x + 1) / 2 * FW, ay = (1 - feet.y) / 2 * FH;
+
+  const frames = [];
+  for (let i = 0; i < RUN; i++) frames.push({ key: 'run', i, time: i / RUN * r.clip.duration });
+  for (const pose of ['up', 'down', 'left']) for (let i = 0; i < PHASES; i++) frames.push({ key: pose, i, time: i / PHASES * r.clip.duration, pose });
+  for (const f of frames) { f.px = renderFrame(f.time, f.pose); f.box = crop(f.px); }
+
+  let x = 0, y = 0, rowH = 0;
+  for (const f of [...frames].sort((p, q) => q.box.h - p.box.h)) {
+    if (x + f.box.w > SHEET_W) { x = 0; y += rowH + 1; rowH = 0; }
+    f.at = [x, y]; x += f.box.w + 1; rowH = Math.max(rowH, f.box.h);
+  }
+  const h = y + rowH, sheet = new Uint8Array(SHEET_W * h * 4), meta = { scale: SCALE, frames: {} };
+  for (const f of frames) {
+    const { x0, y0, w: fw, h: fh } = f.box;
+    for (let yy = 0; yy < fh; yy++) sheet.set(f.px.subarray(((y0 + yy) * FW + x0) * 4, ((y0 + yy) * FW + x0 + fw) * 4), ((f.at[1] + yy) * SHEET_W + f.at[0]) * 4);
+    (meta.frames[f.key] ||= [])[f.i] = [f.at[0], f.at[1], fw, fh, +(ax - x0).toFixed(1), +(ay - y0).toFixed(1)];
+  }
+  let bin = '';
+  for (let i = 0; i < sheet.length; i += 0x8000) bin += String.fromCharCode(...sheet.subarray(i, i + 0x8000));
+  return { meta, w: SHEET_W, h, rgba: btoa(bin) };
+};
+window.ready = true;
+</script>
