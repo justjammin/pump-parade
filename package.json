@@ -1,0 +1,12 @@
+{
+  "name": "pump-parade",
+  "private": true,
+  "description": "A wall-posing chase game in a single HTML file.",
+  "scripts": {
+    "build": "node build.mjs",
+    "push:itch": "node build.mjs && butler push dist/itch \"${ITCH_TARGET:?Set ITCH_TARGET to <itch-user>/<game-slug>}\":html5"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
