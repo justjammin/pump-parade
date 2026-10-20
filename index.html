@@ -263,32 +263,16 @@ const RECRUIT_COLORS = [
 ].map(c => ({ ...c, leg: c.skin, shoe: INK }));
 const MEME_LIFE = 1.7, MEME_ZOOM = 2.3, MEME_SLOW = 0.12;
 const MEME_LINES = ['TOO PRETTY TO POSE', 'SMOLDER MODE: ON', "I'M OUT, BRO", 'NOT MY ANGLE', 'CARDIO? PASS.'];
-const SMOLDER = [
-  '......kkkkkkk.......',
-  '....kkhhhhhhhkkk....',
-  '...khhHHhhhhhhhhkk..',
-  '..khhHHhhhhhhhhhhhk.',
-  '..khhhhhhhhhhhhhhhk.',
-  '.khhhhhsssshhhhhhhk.',
-  '.khhsbbbssssssshhhk.',
-  '.khsbsssbsssssssshk.',
-  '.kssssssssssssbbbsk.',
-  '.kssssssssssbbssssk.',
-  '.ksskkkkkssskkkkksk.',
-  '.ksskwwpkssskwwpksk.',
-  '.ksesdddssdssdddssk.',
-  '.ksessssssdsssssesk.',
-  '.ksdsssssdedssssdsk.',
-  '..ksdssssssssssdsk..',
-  '..kssdssssksksdssk..',
-  '..kssssssklLlksssk..',
-  '...ksssssklllkssk...',
-  '...ksssssskkksssk...',
-  '....ksssssdssssk....',
-  '.....kkkkkkkkkk.....',
-  '.......kssssk.......',
-  '.......kssssk.......',
+// Pixel role maps traced from Higgsfield portraits, one per RECRUIT_COLORS entry, run-length encoded with rows split on '/'.
+// faceSprite paints them with the recruit's own colors so the meme face matches the body.
+const MEME_FACES = [
+  '.8k8.26/.5k3hb6hk3.23/.4khb2h8b2hk2.21/.3kb2h13bhk2.19/.2kbh17bhk8.11/.khbh18b8hk2.9/.kbh28b2k2.7/.kbh30bhk.6/kh33bk.6/kbh33bk.5/kbh33bk.5/kbh34k.5/kbh34k2.4/kh16bh18bhk.3/.kbh34bhk.2/.kbh14bh20bk.2/.2kbh22bh7bh4bk./.2khbhbh3bh14bh3bh9bhk/.3khbhbh10bh5bk2b2h12k/.3kh4bh10b2kHs5h12bk/.3kbh2s3kb2h3k2s11h11bk/.3kbh2s6ks15bh10bk/.3kbhHs23h11k/.3kbhs24h11k/.3k3s24h9bk./.3khks16k2Hs4kh9bk./.4ks15Hk5s3kh9bk./.4ks14k3s7kh8bhk./.3k2s12k4s9bh7bk.2/.3k5s7k4s12h7bk.2/.3k2sk4Hs5k2s13bh6bk.2/.3ks4k4s19kh3bs2k2.2/.3k2s6ks19kh2bs4k.2/.3khs2k4s7kH2k4s6khbs2ks2hk./.4ks2HwHks7w3H3s7khksks3hk./.3khs26h2s6hk./.3k2s26h2sks4hk./.3ks27h2s6k.2/.3ks26k2s6k2.2/.3ks33hk.3/.3khs32hk.3/.3khs31k2.4/.4khs7k2s17ks2k2.5/.4khs26k2hk.6/.4khs26k3.7/.5ks25ksk2.7/.5ks3l4s18kshk.7/.5ks4l4s19hk.7/.5ks4lsls20hk.7/.5khs2l5s16ks2hk.7/.6ks3l3s16ks3hk.7/.6ks3Hk2s15ks4hk.7/.6khs18k2s5hk.7/.6khs16Hk2s6hk.7/.6khs15k3s7hk.7/.6khs13k4s8k2.7/.6khs11k5s9k2.7/.7kh2s7Hk4Hs10k2.7/.8k2hk10s12k2.7/.10k10s13hk.7/.12k6s16k.7/.12k2s20hk.6/.12k2s20k2.6/.12khs20k2.6/.13k22.7',
+  '.8k8.26/.6k2b8k3.23/.4k2b2sh2sbh2b4k2.21/.3kb2h4bh7b3k2.19/.2kb2h15b3k8.11/.2kbh5bh12b9k2.9/.k2sh4bh12bh3sb2h2b3k2.7/.k2s2h3bh11bh10bhb2k.6/k2s3h3bsh9bh11b4k.6/k2s5h2sh8bh12b3sbk.5/k2s5h11bh11b6k.5/k2s5h10b2h8bh2b7k.4/k2s2h13b2h8b7hsbk.4/k2shbh3bh8b2h8b7h2b2k.3/.kbhb2h2b2h7b2h7b9h2b2k.2/.kbsb6h7b2h3b15hbk.2/.2kbhb33hbk./.2kb2hb28hb3hb2k/.3kb20k2b6h4b2h2bk/.4kb4kb10k3s4kb3hbh2b3h2bk/.3kbhbks2k3b3k3s9kb4h3b2h2bk/.3kbhks5k3s14kb8h2bk/.3kbhks22kb8h2bk/.3kbhks15ksks5b8hsbk/.3k3s23kb8hbk./.3k3s16k3s4kb8hbk./.4k2s14k6s3kb8sbk./.4k2s13k3s4ks2kb7hb2k./.3k2s12k4s9kb6hbk.2/.3k5s7k5s10kb6hbk.2/.3k8s4k3s13b5hsk2.2/.3k2s3k4s6ks12kb4ksk2.2/.3k2s5k2s19kb3s4k.2/.4ks2k4sks5k8s5kb2s2ks2k2./.4ks2ksk3s6ws2k3s7kbksks3k2./.3k2s6ks19k5sksk2./.3k2s6ks18k3sk2sksk2./.3k2s25kbksks3k2.2/.3k2s25k3sks3k2.2/.3k2s5ks17ks4ks3k2.3/.3k2s4ks17ks9k2.3/.3k2s4ks6ks10ks8k2.4/.4k2s3k2s2k2sks9ks5ks2k2.5/.4k2s5k2s12ks6k4.6/.4k3s24k4.7/.5k2s2lsks19ksk2.7/.5k2s2l5s17ksk2.7/.5k2s2lkl3s17ksk2.7/.5k2s2l2kl3s15k2sk2.7/.5k2s2l6s15ks2k2.7/.6ks2l5s15ks3k2.7/.6k2s2k3s15k2s3k2.7/.6k2s5ls12k3s4k2.7/.6k2s16k4s5k2.7/.6k2s14k5s6k2.7/.6k2s13k4s8k2.7/.7k2s10k5s9k2.7/.7k3s7k6s10k2.7/.8k14s11k2.7/.10k10s13k2.7/.12k7s15k2.6/.12k4s18k2.6/.12k2s20k2.6/.12k2s20k2.6/.13k22.7',
+  '.8k8.26/.6k2b8k2.24/.4k2b2h8b2k3.21/.3kb2h13b2k2.19/.2kbh17b2k8.11/.2kbh18b9k2.9/.kbh28b2k2.7/.kbh30b2k.6/kbh32bk.6/kbh33bk.5/kbh33bk.5/kbh34k.5/kbh34k.5/kbh34bk2.3/.kbh34b2k.2/.kbh35bk.2/.2kbh22bh7bh4bk./.2kb2hbh3bh14bh3bh9bk./.3kb2hbh16bkb3h11bk/.4kh3bh10b2k2s4kh12bk/.3kbh2bs2khbh3bk2s9kh11bk/.3kbh2s5k3s14bh10bk/.3kbhks22bh10bk/.3kbhks22kh10bk/.3k3s23kh2bh6bk./.3k3s16k3s4kh9bk./.4k2s14k6s3kh9bk./.4ks14k3s4ks2kh8b2k./.3k2s12k4s9bh7bk.2/.3k5s7k5s10kh7bk.2/.3k8s4k3s13bh6bk.2/.3k2s3k4s6ks4ks7bh3b4k.2/.3k2s5k2s5ks13kh2bs3k2.2/.3k2s2k4s6k3Hk4s6khbs2ksk3./.4ks2kwHk2s6w3Hk2s7khbsks3k2./.3k2s6ks5ks13h2bk2s3k2./.3k2s25kh2sk2s3k2./.3k2s25kh2sks3k2.2/.3k2s25k3sks3k2.2/.3k2s5ks17ks4ks3k2.3/.3k2s4ks17ks8k3.3/.3k2s4ks6ks10ks7k3.4/.4k2s3k2s2k2s11ks5ks2k2.5/.4k2s5k2s12ks5k5.6/.4k3s17ks6k4.7/.5k2s4ks19ksk2.7/.5k2s2l4s18ksk2.7/.5k2s2l5s17ksk2.7/.5k2s2l5s16k2sk2.7/.5k2s2l5s16ks2k2.7/.6ks2l4ks15ks3k2.7/.6k2s2k3s14k3s3k2.7/.6k2s18k3s4k2.7/.6k2s16k4s5k2.7/.6k2s14k5s6k2.7/.6k2s12k5s8k2.7/.6k2s11k5s9k2.7/.7k3s7k6s10k2.7/.8k14s11k2.7/.10k10s13k2.7/.12k6s15k2.7/.12k4s18k2.6/.12k2s20k2.6/.12k2s20k2.6/.13k22.7',
+  '.8k8.26/.5k3b8k3.23/.4kb3h3b2h2b4k2.21/.3kb2h4bh7b3k2.19/.2kb2h4bh10b3k8.11/.kb2h5bh12b9k2.9/.kbh5bh12bh9b2k2.7/.kbh5bh24b2k.6/kbh17bh13b2k.6/kbh16bh16bk.5/kbh16bh16bk.5/kbh15bh17bk.5/kbh15bh17bk2.4/kbh15bh9bh8b2k.3/.kbh14bh9bh9b2k.2/.kbh2bh3bh7bh9bh10bk.2/.2kbh5bh7bh8bh6b3h3bk./.2kb2hbh3bh7bh6bh3b2h8b2k/.3kb2hbh3bh6bh4bk2b3h11bk/.3kb2hb3hbh7bk3s4kbh11bk/.3kbh2ks2k2bh3bk2s9kbh10bk/.3kbhks5k3s14kh10bk/.3kbhks23bh9bk/.3kbhks14ks2ks5bh4bh3b2k/.3k3s23kh2b2h2bh2bk./.3k3s16k3s4kh4bh2bhbk./.4k2s14k6s3kh9bk./.4k2s13k3s4ks2kbh7b2k./.3k2s12k4s9kbh6bk.2/.3k5s5k7s11bh6bk.2/.3k9s2k4s13bh6bk.2/.3k2s3k4s6ks12kh3b2sbk.2/.3k2s5k2s19kh2bs2k3.2/.3k8sks4k8s6khbs2ksk3./.4k2sk5s7w2k3s7khksks3k2./.3k2s6ks5ks13khk2s4k2./.3k2s6ks6ks11khksks4k2./.3k2s25khksks3k2.2/.3k2s5ks19k2s2ks3k2.2/.3k2s5ks17ks4ks3k2.3/.3k2s4ks17ks8k3.3/.3k3s3ks6ks10ks8k2.4/.4k2s3k2s2k2s11ks5ks2k2.5/.4k3s4k2s12ks5k5.6/.4k3s24k4.7/.5k2s2lsks19ksk2.7/.5k2skl4s18ksk2.7/.5k2s2lkl3s17ksk2.7/.5k2s2l2klkls15ks2k2.7/.5k2s2l6s15ks2k2.7/.6k2skl4s15ks3k2.7/.6k2s2k3s14k3s3k2.7/.6k3s4ks12k3s4k2.7/.6k2s16k4s5k2.7/.6k2s14k4s7k2.7/.6k2s13k4s8k2.7/.6k3s10k5s9k2.7/.7k3s7k6s10k2.7/.8k14s11k2.7/.10k10s13k2.7/.12k6s15k2.7/.12k4s18k2.6/.12k2s20k2.6/.12k2s20k2.6/.13k22.7',
+  '.8k8.26/.6k2sh5s2k3.23/.4k2h12sk2.21/.3kh16sk2.19/.2ksh18sk8.11/.2kh27sk2.9/.kh31k2.7/.kh32sk.6/kh34k.6/kh35k.5/kh35k.5/kh35sk.4/kh35sk.4/ksh35sk.3/.kh37k.2/.kh37sk./.2kh37k./.2ksh36sk/.3ksh36k/.4kh16Hs6h13k/.3kh3s3Hh7s11h12k/.3kh3s23h11k/.3kh2s24h11k/.3kh2s24h10sk/.3kh2s24h10k./.3ks18h3s5h10k./.4ks15Hh4s5h10k./.4ks14h3s8h9sk./.3khs12h4s9Hh8k.2/.3kh4s7Hh3Hs11h8k.2/.3kh6Hs4Hh2s13h8k.2/.3ks4h4s19Hh4s2hk.2/.3khs4h3s19Hh3s4hk./.3khs2h4s11h2s7h3s5hk./.4ks2HwHhs11H2s7h2Hs5hk./.3khs26h2s6hk./.3khs26h2s6hk./.3khs26h2s5hk.2/.3ks34hk.2/.3ks33h2k.2/.3khs32hk.3/.3khs31hk.4/.4khs29hk.5/.4khs26h3k.6/.4khs25h3k.7/.5ks25h3k.7/.5ks4ls20h3k.7/.5ks4ks22hk.7/.5khs3lks21hk.7/.5khs3l4s19hk.7/.6ks4ls21hk.7/.6khs25hk.7/.6khs18h2s5hk.7/.6khs16h3Hs5hk.7/.6khs14Hh3s7hk.7/.6khs13h4s8hk.7/.6khs11h5s9hk.7/.7kh2s7h6s10hk.7/.8k2h11Hs11hk.7/.10k3h7s13hk.7/.12kh5s15Hhk.6/.12khs20hk.6/.12khs20hk.6/.12khs20hk.6/.13k22.7',
 ];
+const MEME_GLINT = [23.5, 34.5];
 const TAUNTS = ['Catch me, meatheads!', 'Leg day? Never heard of it.', 'Mmm. Chocolate whey.', 'Too slow, bro!', 'Gains are MINE now.'];
 
 const HOLD = 0.62, PERFECT_WIN = 0.24, ZMAX = 1150, DPERSP = 260, ROAD_HALF = 300;
@@ -408,10 +392,11 @@ const faceSprites = new Map();
 function faceSprite(cols) {
   let c = faceSprites.get(cols);
   if (c) return c;
-  c = document.createElement('canvas'); c.width = SMOLDER[0].length; c.height = SMOLDER.length;
+  const rows = MEME_FACES[RECRUIT_COLORS.indexOf(cols)].split('/').map(r => r.replace(/(\D)(\d+)/g, (_, ch, n) => ch.repeat(+n)));
+  c = document.createElement('canvas'); c.width = rows[0].length; c.height = rows.length;
   const g = c.getContext('2d');
-  const pal = { k: INK, p: INK, h: cols.hair, H: shade(cols.hair, 0.3), b: shade(cols.hair, -0.3), s: cols.skin, d: shade(cols.skin, -0.28), e: shade(cols.skin, 0.22), l: mix(cols.skin, '#ff5c8a', 0.6), L: mix(cols.skin, '#ffd0dc', 0.75), w: '#fff6e0' };
-  SMOLDER.forEach((row, y) => [...row].forEach((ch, x) => { if (pal[ch]) { g.fillStyle = pal[ch]; g.fillRect(x, y, 1, 1); } }));
+  const pal = { k: INK, h: cols.hair, H: shade(cols.hair, 0.3), b: shade(cols.hair, -0.3), s: cols.skin, l: mix(cols.skin, '#ff5c8a', 0.6), w: '#fff6e0' };
+  rows.forEach((row, y) => [...row].forEach((ch, x) => { if (pal[ch]) { g.fillStyle = pal[ch]; g.fillRect(x, y, 1, 1); } }));
   faceSprites.set(cols, c);
   return c;
 }
@@ -888,7 +873,7 @@ function drawMeme() {
   ctx.drawImage(sp, -fw / 2, -fh * 0.45, fw, fh);
   const sa = clamp((meme.age - 0.4) / 0.45, 0, 1), sk = Math.sin(sa * PI) * pop;
   if (sk > 0.05) {
-    ctx.translate(px * 7.5, px * 10.5 - fh * 0.45);
+    ctx.translate(px * (MEME_GLINT[0] - sp.width / 2), px * MEME_GLINT[1] - fh * 0.45);
     ctx.fillStyle = '#fff6e0';
     ctx.fillRect(-px / 2, -px * (0.5 + 3 * sk), px, px * (1 + 6 * sk));
     ctx.fillRect(-px * (0.5 + 3 * sk), -px / 2, px * (1 + 6 * sk), px);
