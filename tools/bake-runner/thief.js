@@ -17,6 +17,13 @@ const TAIL = {
   root: 0.08, bush: 1, ring: 0.14, dark: 0.08, droop: 1.6, swing: 0.5,
 };
 
+// Squat proportions, in bind-space metres (y up, +z forward). Everything below the hips bone at `hips` keeps `legs` of its
+// height and the torso up to the neck at `neck` keeps `torso`, while the head and arms keep their size, so the raccoon
+// stands 0.9 m instead of 1.2 m. Over the `waist` heights (start, peak and end) the body widens by up to 1 + `wide` and the belly pushes
+// forward from `mid`, the body's centre in depth, by up to 1 + `belly`; over the `seat` heights the rump pushes back by
+// up to 1 + `rump`. Thighs and shins grow to `girth` times their old thickness.
+const SQUAT = { legs: 0.65, torso: 0.75, hips: 0.62, neck: 0.97, mid: 0.2, waist: [0.4, 0.68, 0.9], seat: [0.35, 0.58, 0.8], wide: 0.9, belly: 1.1, rump: 0.6, girth: 1.6 };
+
 // The tub's label is drawn round the side; u = 0.5 is the side facing -Z, toward the chase cam.
 function label() {
   const c = document.createElement('canvas');
@@ -58,6 +65,7 @@ export function dressThief(r, scene, unit) {
   }
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   const length = Math.max(...tail.map(v => -v.p.z));
+  const pivot = reshape(r, new Set(tail.map(t => t.i)));
   r.body.frustumCulled = false;
 
   const top = new THREE.Vector3(), at = new THREE.Vector3(), bend = new THREE.Quaternion(), droop = new THREE.Quaternion();
@@ -67,7 +75,7 @@ export function dressThief(r, scene, unit) {
     for (const t of tail) {
       droop.setFromAxisAngle(across, -TAIL.droop * THREE.MathUtils.smoothstep(-t.p.z, 0, TAIL.root));
       bend.setFromAxisAngle(forward, sway * -t.p.z / length).multiply(droop);
-      v.copy(t.p).applyQuaternion(bend).add(TAIL.pivot);
+      v.copy(t.p).applyQuaternion(bend).add(pivot);
       pos.setXYZ(t.i, v.x, v.y, v.z);
       v.copy(t.n).applyQuaternion(bend);
       nrm.setXYZ(t.i, v.x, v.y, v.z);
@@ -83,6 +91,83 @@ export function dressThief(r, scene, unit) {
       reach(r, side, at, new THREE.Vector3(s, -0.2, -0.3), [-s, 0, 0]);
     }
   };
+}
+
+// Squashes the rig to SQUAT. Each bone gets a map of bind space: the torso is squashed and widened, each leg is scaled
+// by `legs` about its hip joint and thickened about its own axis, and the head and arms move down with the neck.
+// Vertices (except `skip`) move by the skin-weighted blend of their bones' maps and bones move by their own, then the
+// clip's position keys and the inverse bind matrices follow. Returns where the tail pivot lands.
+function reshape(r, skip) {
+  const S = SQUAT, { smoothstep, clamp } = THREE.MathUtils, bones = r.body.skeleton.bones;
+  r.model.updateMatrixWorld(true);
+  const rest = new Map(bones.map(b => [b, b.getWorldPosition(new THREE.Vector3())]));
+  const tall = y => y <= S.hips ? S.legs * y : y <= S.neck ? S.legs * S.hips + S.torso * (y - S.hips) : tall(S.neck) + y - S.neck;
+  const slope = y => y <= S.hips ? S.legs : y <= S.neck ? S.torso : 1;
+  const bump = ([y0, y1, y2], y) => smoothstep(y, y0, y1) * (1 - smoothstep(y, y1, y2));
+  // A map writes where the bind-space point v goes to p, and how much it stretches the surface along each axis to s.
+  const core = (v, p, s) => {
+    const k = bump(S.waist, v.y), w = 1 + S.wide * k, d = 1 + (v.z > S.mid ? S.belly * k : S.rump * bump(S.seat, v.y));
+    p.set(v.x * w, tall(v.y), S.mid + (v.z - S.mid) * d);
+    s.set(w, slope(v.y), d);
+  };
+  const upper = (v, p, s) => { p.set(v.x, v.y + tall(S.neck) - S.neck, v.z); s.set(1, 1, 1); };
+  const leg = (side, thick) => {
+    const [J, K, A] = ['UpLeg', 'Leg', 'Foot'].map(n => rest.get(r.bones[side + n])), hip = new THREE.Vector3(), axis = new THREE.Vector3();
+    core(J, hip, axis);
+    const g = thick ? S.girth : S.legs;
+    return (v, p, s) => {
+      const [hi, lo] = v.y >= K.y ? [J, K] : [K, A];
+      axis.lerpVectors(lo, hi, clamp((v.y - lo.y) / (hi.y - lo.y), 0, 1));
+      p.copy(v).sub(J).multiplyScalar(S.legs).add(hip);
+      p.x += (g - S.legs) * (v.x - axis.x); p.z += (g - S.legs) * (v.z - axis.z);
+      s.set(g, S.legs, g);
+    };
+  };
+  const mapOf = name => {
+    const m = name.match(/^(Left|Right)(UpLeg|Leg|Foot|ToeBase)$/);
+    return m ? leg(m[1], m[2] === 'UpLeg' || m[2] === 'Leg') : /^(Hips|Spine)/.test(name) ? core : upper;
+  };
+  const maps = bones.map(b => mapOf(b.name));
+
+  const geo = r.body.geometry, pos = geo.attributes.position, nrm = geo.attributes.normal, index = geo.attributes.skinIndex, weight = geo.attributes.skinWeight;
+  const v = new THREE.Vector3(), n = new THREE.Vector3(), p = new THREE.Vector3(), s = new THREE.Vector3(), sumP = new THREE.Vector3(), sumN = new THREE.Vector3();
+  const get = ['getX', 'getY', 'getZ', 'getW'];
+  for (let i = 0; i < pos.count; i++) {
+    if (skip.has(i)) continue;
+    v.fromBufferAttribute(pos, i); n.fromBufferAttribute(nrm, i);
+    sumP.set(0, 0, 0); sumN.set(0, 0, 0);
+    for (const k of get) {
+      const w = weight[k](i);
+      if (!w) continue;
+      maps[index[k](i)](v, p, s);
+      sumP.addScaledVector(p, w);
+      sumN.addScaledVector(p.copy(n).divide(s), w);
+    }
+    pos.setXYZ(i, sumP.x, sumP.y, sumP.z);
+    sumN.normalize();
+    nrm.setXYZ(i, sumN.x, sumN.y, sumN.z);
+  }
+  pos.needsUpdate = nrm.needsUpdate = true;
+
+  const toParent = new THREE.Matrix4(), moved = new Map();
+  r.bones.Hips.traverse(b => {
+    const old = b.position.clone();
+    mapOf(b.name)(rest.get(b), p, s);
+    b.position.copy(p).applyMatrix4(toParent.copy(b.parent.matrixWorld).invert());
+    b.updateWorldMatrix(false, false);
+    moved.set(b.name, [old, b.position.clone()]);
+  });
+  // Every bone has position keys. The hips' keys carry the stride's bob and sway, which shrink with the legs.
+  for (const t of r.clip.tracks) {
+    const [name, prop] = t.name.split('.');
+    if (prop !== 'position') continue;
+    const [old, now] = moved.get(name), k = name === 'Hips' ? S.legs : 1;
+    for (let i = 0; i < t.values.length; i++) t.values[i] = now.getComponent(i % 3) + k * (t.values[i] - old.getComponent(i % 3));
+  }
+  r.model.updateMatrixWorld(true);
+  r.body.skeleton.calculateInverses();
+  core(TAIL.pivot, p, s);
+  return p.clone();
 }
 
 // The stride phase where the lower foot is lowest, so frame 0 has a foot planted and the game's bob, which rests at

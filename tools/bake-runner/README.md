@@ -35,7 +35,8 @@ The models are not checked in (4.1 MB and 3.8 MB). Both are Meshy v7 image-to-3D
 
 - 12 run frames, starting where a foot is planted so the game's bob lands with each step.
 - `thief.js` adds a pink WHEY tub and puts it over the raccoon's head, and two-bone IK puts each hand on a side of the tub. The tail Meshy built was thin, plain and skinned to the thighs, so `thief.js` re-skins it to the hips, thickens it, rings it, drapes it down and swings it once per stride. The fur is tinted to the vector thief's blue-grey.
-- One colour pass, stored as a single lossy WebP with alpha. Until it decodes, the game draws the vector thief.
+- Meshy's raccoon is a lean 1.2 m runner, so `thief.js` then squashes it in bind space to `SQUAT`. The legs keep 65% of their length and the torso 75%, while the head and arms keep their size. The waist widens, the belly and rump round out and the legs thicken. The bones, the clip's position keys and the inverse bind matrices move with the mesh, so the run cycle plays on the new proportions. It stands 0.9 m tall and reaches 152 units to the top of the tub, down from 182, so `index.html` anchors the taunt bubble at 160 units.
+- One colour pass, stored as a single lossy WebP with alpha. Until it decodes, the game draws the vector thief, which keeps the old, taller proportions.
 
 ## Why baked sprites instead of live three.js
 
@@ -48,10 +49,10 @@ Both were prototyped in the game. Frame time is main-thread milliseconds per fra
 
 Added to `dist/web/index.html`, gzipped:
 
-- Baked sprites: +111.5 KB (27.7 KB → 139.3 KB) for the lifters, plus 28.0 KB for the thief sheet.
+- Baked sprites: +111.5 KB (27.7 KB → 139.3 KB) for the lifters, plus 27.8 KB for the thief sheet.
 - Live three.js: about +446 KB (the three.js bundle is 145 KB and the model as base64 is 301 KB).
 
-The thief is cheaper from its sheet than as vector paths: 44–48 µs per draw against 145–153 µs, measured on one throttled 375×812 canvas in alternating batches of 100 draws, three runs.
+The thief is cheaper from its sheet than as vector paths: 40–42 µs per draw against 150–152 µs, measured on one throttled 375×812 canvas in alternating batches of 100 draws, three runs. The squat sheet's frames are a sixth shorter, and the taller sheet measured 44–45 µs in the same session.
 
 Every build kept a 16.7 ms median frame interval (60 fps) when the machine was otherwise idle. With other work running, the live version fell to 20 fps while 2D and sprites held. Its cost is script time in the animation frame (one three.js render, skeleton update and blit per figure), not the GPU. Walls and crew interleave by depth, so a separate WebGL layer over the 2D canvas cannot draw them in the right order, and every figure had to be rendered and copied into the 2D canvas.
 

@@ -30,9 +30,10 @@ function classTexture(tex) {
 }
 
 // scale is sprite pixels per figure unit and unit is metres per figure unit: index.html draws a lifter 193 units tall
-// (the 1.8 m runner) and the thief 134 units to its ear tips (the 1.2 m raccoon). box bounds a frame in figure units
-// around the feet. Each kind renders its own colour passes, poses a frame, and reduces a pixel's supersamples, where
-// a sample is a pass buffer offset or -1 for ink. A kind may start its frames at a later stride phase.
+// (the 1.8 m runner) and the vector thief 134 units to its ear tips (the 1.2 m raccoon before `thief.js` squashes it).
+// box bounds a frame in figure units around the feet. Each kind renders its own colour passes, poses a frame, and
+// reduces a pixel's supersamples, where a sample is a pass buffer offset or -1 for ink. A kind may start its frames at
+// a later stride phase.
 const KINDS = {
   // Lifters: 12 run frames and 6 per arm pose. Pixels hold a part class and a light level for recolouring per palette.
   runner: {
