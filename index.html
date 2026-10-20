@@ -31,13 +31,15 @@ body { background: var(--ink); color: var(--cream); font-family: var(--body); ov
 .stage-tag { display: flex; flex-direction: column; gap: 2px; }
 .stage-tag b { font-family: var(--display); font-weight: 400; font-size: 13px; letter-spacing: .06em; color: var(--sun); }
 .stage-tag span { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.score-box { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.score-box { display: flex; flex-direction: column; align-items: center; gap: 5px; white-space: nowrap; }
 #score { font-family: var(--display); font-size: clamp(22px, 4vw, 34px); color: var(--cream); text-shadow: 0 3px 0 var(--ink); font-variant-numeric: tabular-nums; -webkit-text-stroke: 1.5px var(--ink); paint-order: stroke fill; line-height: 1; }
+#score i { display: inline-block; width: .73em; text-align: center; font-style: normal; }
 #score.bump { animation: bump .32s var(--spring); }
 #streak { font-family: var(--display); font-size: 11px; color: var(--ink); background: var(--sun); border: 2px solid var(--ink); border-radius: 6px; padding: 2px 7px; box-shadow: 0 2px 0 var(--ink); }
 #streak.bump { animation: bump .36s var(--spring); }
 @keyframes bump { 0% { transform: scale(1.4) rotate(-4deg); color: var(--sun); } 100% { transform: scale(1); } }
 .hud-r { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.stage-tag, .hud-r { flex-shrink: 0; }
 .status { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
 #hearts { font-size: 18px; letter-spacing: 2px; color: var(--hot); line-height: 1; }
 #hearts span { display: inline-block; }
@@ -103,7 +105,7 @@ body { background: var(--ink); color: var(--cream); font-family: var(--body); ov
 #banner.show small { animation: subIn .6s .22s var(--spring) both; }
 @keyframes slam { 0% { opacity: 0; transform: scale(2.8); filter: blur(8px); } 12% { opacity: 1; transform: scale(.9); filter: blur(0); } 19% { transform: scale(1.06) rotate(-1deg); } 27% { transform: scale(1); } 82% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.08) translateY(-20px); } }
 @keyframes subIn { from { opacity: 0; transform: translateX(-40px) skewX(-12deg); } }
-@media (max-width: 420px) { .legend { grid-template-columns: repeat(2, 1fr); } .stats b { font-size: 18px; } .meter { width: 56px; } }
+@media (max-width: 420px) { .legend { grid-template-columns: repeat(2, 1fr); } .stats b { font-size: 18px; } .meter { width: 56px; } #stageName { display: none; } #score { font-size: 20px; } }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition: none !important; }
   #banner.show { animation: still 2.4s steps(1, end) forwards !important; }
@@ -1361,7 +1363,7 @@ function camTick(dt) {
 function uiTick(dt) {
   shownScore = lerp(shownScore, scoreTarget, damp(9, dt));
   const s = Math.round(shownScore);
-  if (s !== uiTick.s) { uiTick.s = s; $('score').textContent = s.toLocaleString(); }
+  if (s !== uiTick.s) { uiTick.s = s; $('score').innerHTML = s.toLocaleString().replace(/\d/g, '<i>$&</i>'); }
   const v = game.crew.length / MAX_CREW;
   if (v !== meterTarget) {
     if (v < meterTarget) { meterFront = v; meterHold = 0.45; } else { meterBack = v; meterHold = 0.22; }
