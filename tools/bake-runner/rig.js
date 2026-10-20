@@ -25,10 +25,16 @@ export async function loadRunner(url) {
   return { model: gltf.scene, bones, body, mixer, clip: gltf.animations[0] };
 }
 
-const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), q = new THREE.Quaternion(), pw = new THREE.Quaternion(), w = new THREE.Quaternion();
+const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), d = new THREE.Vector3(), q = new THREE.Quaternion(), pw = new THREE.Quaternion(), w = new THREE.Quaternion();
 // The back view puts the character's +X on screen left, and screen y points down.
 const dirOf = (angle, dz) => new THREE.Vector3(-Math.cos(angle), -Math.sin(angle), dz).normalize();
-const TO_CAMERA = new THREE.Vector3(0, 0, -1);
+// Where each palm faces (world space, +Z is the character's front) and how far the wrist may bend toward it, in
+// radians. Palms face down. In the double biceps the forearms are upright, so the wrists curl the fists in over the head.
+const PALMS = {
+  up: { L: [-1, -1, 0], R: [1, -1, 0], flex: 0.8 },
+  down: { L: [0, -1, -1], R: [0, -1, -1], flex: 0 },
+  left: { L: [0, -1, 0], R: [0, -1, -0.5], flex: 0 },
+};
 
 // Applies a world-space rotation to a bone, keeping its parent where it is.
 function turn(bone, rotation) {
@@ -43,13 +49,18 @@ function aim(bone, child, target) {
   turn(bone, q.setFromUnitVectors(b.sub(a).normalize(), target));
 }
 
-// Rolls the forearm about its own axis until the palm, wrapped in curled fingers, faces the camera. Seen from the
-// back, the straight finger roots before the knuckle line spread apart and read as an open hand at sprite size.
-function showFist(fore, hand, axis) {
+// Rolls the forearm about its own axis until the palm faces the target as nearly as a straight wrist allows, then
+// bends the wrist the rest of the way, up to flex.
+function placeFist(fore, hand, axis, target, flex) {
+  const want = d.fromArray(target).normalize();
   hand.getWorldQuaternion(w);
   const palm = a.fromArray(hand.userData.palm).applyQuaternion(w).addScaledVector(axis, -a.dot(axis));
-  const want = b.copy(TO_CAMERA).addScaledVector(axis, -TO_CAMERA.dot(axis));
-  turn(fore, q.setFromAxisAngle(axis, Math.atan2(c.crossVectors(palm, want).dot(axis), palm.dot(want))));
+  const across = b.copy(want).addScaledVector(axis, -want.dot(axis));
+  turn(fore, q.setFromAxisAngle(axis, Math.atan2(c.crossVectors(palm, across).dot(axis), palm.dot(across))));
+  if (!flex) return;
+  hand.getWorldQuaternion(w);
+  a.fromArray(hand.userData.palm).applyQuaternion(w);
+  turn(hand, q.setFromAxisAngle(c.crossVectors(a, want).normalize(), Math.min(a.angleTo(want), flex)));
 }
 
 // Replaces the clip's arms with the pose: each segment points along its screen angle from the rest pose, so every
@@ -62,6 +73,6 @@ export function poseArms(r, pose) {
     const foreDir = dirOf(p[sd][1], dz[1]);
     aim(arm, fore, dirOf(p[sd][0], dz[0]));
     aim(fore, hand, foreDir);
-    showFist(fore, hand, foreDir);
+    placeFist(fore, hand, foreDir, PALMS[pose][sd], PALMS[pose].flex);
   }
 }

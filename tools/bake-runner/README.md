@@ -17,10 +17,10 @@ The model is not checked in (4.1 MB). The current sheet comes from Higgsfield jo
 
 ## What it does
 
-1. `curl.mjs` curls the fingers into fists. Meshy's rig has no finger bones, and it returned open hands even from a fists concept, so the hand mesh is bent in bind space past the knuckle line. It also records which way each palm faces on the hand joint.
+1. `curl.mjs` curls the fingers into fists. Meshy's rig has no finger bones, and it returned open hands even from a fists concept, so the hand mesh is folded in bind space at the three finger joints, which lays the fingertips flat against the palm. It also records which way each palm faces on the hand joint.
 2. `bake.mjs` serves `bake.html` to headless Chromium. The page poses the model with `rig.js` and renders every frame three times from the chase-cam angle: part classes, plain white lighting for shade, and depth for the ink outline.
    - 12 run frames, then 6 frames each for the up, down and left poses. The game mirrors left for right.
-   - In pose frames the legs keep running and the arms hold the screen angles from `POSES` in `index.html`. Each forearm rolls so the curled fingers face the camera; from the back, the fist reads as an open hand.
+   - In pose frames the legs keep running and the arms hold the screen angles from `POSES` in `index.html`. Each forearm rolls so the palm faces down. In the double biceps the forearms are upright, so the wrists also curl the fists in toward the head. Run frames keep the animation's own arms.
 3. `bake.mjs` packs the frames into one sheet and writes it as two WebP images: shade as lossy grey, and part class plus coverage as lossless grey with alpha.
 
 At load the game combines the two images once per palette (the player, each recruit color, and the white flash), so every crew member keeps their own skin, hair and trunks colors.
