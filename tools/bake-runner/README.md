@@ -1,29 +1,41 @@
-# Runner sprite bake
+# Sprite bakes
 
-The player and crew are drawn from a sprite sheet baked from a rigged 3D model. This tool turns the model into the `RUNNER` block in `../../index.html`, so the game stays a single file with no runtime dependencies.
+The player, the crew and the raccoon thief are drawn from sprite sheets baked from rigged 3D models. This tool turns a model into the `RUNNER` or `THIEF` block in `../../index.html`, so the game stays a single file with no runtime dependencies.
 
 ## Run it
 
 ```bash
 cd tools/bake-runner
 npm install
-CHROMIUM=/path/to/chromium npm run bake -- path/to/runner.glb
+CHROMIUM=/path/to/chromium npm run bake -- runner path/to/runner.glb
+CHROMIUM=/path/to/chromium npm run bake -- thief path/to/raccoon.glb
 cd ../.. && npm run build
 ```
 
 `CHROMIUM` is any Chromium or chrome-headless-shell binary, for example the one Playwright installs under `~/Library/Caches/ms-playwright`.
 
-The model is not checked in (4.1 MB). The current sheet comes from Higgsfield job `0618ecb5-eca5-4461-8484-45b1022012f4`: Meshy v7 image-to-3D with rigging and the RunFast animation, made from an original character concept.
+The models are not checked in (4.1 MB and 3.8 MB). Both are Meshy v7 image-to-3D with rigging and the RunFast animation, made through Higgsfield from original character concepts:
+
+- Runner: job `0618ecb5-eca5-4461-8484-45b1022012f4`.
+- Raccoon: job `dd3ed7d1-83f3-4f07-a46f-d240c0270261`, from concept `4bc45e4f-f64d-429d-bb3e-0fcd6dfb7275`.
 
 ## What it does
 
-1. `curl.mjs` curls the fingers into fists. Meshy's rig has no finger bones, and it returned open hands even from a fists concept, so the hand mesh is folded in bind space at the three finger joints, which lays the fingertips flat against the palm. It also records which way each palm faces on the hand joint.
-2. `bake.mjs` serves `bake.html` to headless Chromium. The page poses the model with `rig.js` and renders every frame three times from the chase-cam angle: part classes, plain white lighting for shade, and depth for the ink outline.
-   - 12 run frames, then 6 frames each for the up, down and left poses. The game mirrors left for right.
-   - In pose frames the legs keep running and the arms hold the screen angles from `POSES` in `index.html`. Each forearm rolls so the palm faces down. In the double biceps the forearms are upright, so the wrists also curl the fists in toward the head. Run frames keep the animation's own arms.
-3. `bake.mjs` packs the frames into one sheet and writes it as two WebP images: shade as lossy grey, and part class plus coverage as lossless grey with alpha.
+1. `hands.mjs` records which way each palm faces on the hand joint. For the runner it also curls the fingers into fists. Meshy's rig has no finger bones, and it returned open hands even from a fists concept, so the hand mesh is folded in bind space at the three finger joints, which lays the fingertips flat against the palm.
+2. `bake.mjs` serves `bake.html` to headless Chromium. The page poses the model and renders every frame from the chase-cam angle, once per colour pass plus once for depth, which draws the ink outline.
+3. `bake.mjs` packs the frames into one sheet, encodes it as WebP and replaces the kind's `<script id="…-art">` block.
 
-At load the game combines the two images once per palette (the player, each recruit color, and the white flash), so every crew member keeps their own skin, hair and trunks colors.
+### Runner
+
+- 12 run frames, then 6 frames each for the up, down and left poses. The game mirrors left for right.
+- `rig.js` poses the arms. In pose frames the legs keep running and the arms hold the screen angles from `POSES` in `index.html`. Each forearm rolls so the palm faces down. In the double biceps the forearms are upright, so the wrists also curl the fists in toward the head. Run frames keep the animation's own arms.
+- The colour passes are part classes and plain white lighting. They are stored as two images: shade as lossy grey, and part class plus coverage as lossless grey with alpha. At load the game combines them once per palette (the player, each recruit color, and the white flash), so every crew member keeps their own skin, hair and trunks colors.
+
+### Thief
+
+- 12 run frames, starting where a foot is planted so the game's bob lands with each step.
+- `thief.js` adds a pink WHEY tub and puts it over the raccoon's head, and two-bone IK puts each hand on a side of the tub. The tail Meshy built was thin, plain and skinned to the thighs, so `thief.js` re-skins it to the hips, thickens it, rings it, drapes it down and swings it once per stride. The fur is tinted to the vector thief's blue-grey.
+- One colour pass, stored as a single lossy WebP with alpha. Until it decodes, the game draws the vector thief.
 
 ## Why baked sprites instead of live three.js
 
@@ -36,8 +48,10 @@ Both were prototyped in the game. Frame time is main-thread milliseconds per fra
 
 Added to `dist/web/index.html`, gzipped:
 
-- Baked sprites: +111.5 KB (27.7 KB → 139.3 KB).
+- Baked sprites: +111.5 KB (27.7 KB → 139.3 KB) for the lifters, plus 28.0 KB for the thief sheet.
 - Live three.js: about +446 KB (the three.js bundle is 145 KB and the model as base64 is 301 KB).
+
+The thief is cheaper from its sheet than as vector paths: 44–48 µs per draw against 145–153 µs, measured on one throttled 375×812 canvas in alternating batches of 100 draws, three runs.
 
 Every build kept a 16.7 ms median frame interval (60 fps) when the machine was otherwise idle. With other work running, the live version fell to 20 fps while 2D and sprites held. Its cost is script time in the animation frame (one three.js render, skeleton update and blit per figure), not the GPU. Walls and crew interleave by depth, so a separate WebGL layer over the 2D canvas cannot draw them in the right order, and every figure had to be rendered and copied into the 2D canvas.
 

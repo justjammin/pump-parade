@@ -2,7 +2,7 @@
   "name": "pump-parade-bake-runner",
   "private": true,
   "type": "module",
-  "description": "Bakes a rigged Meshy GLB into the runner sprite data embedded in index.html.",
+  "description": "Bakes rigged Meshy GLBs into the runner and thief sprite data embedded in index.html.",
   "scripts": {
     "bake": "node bake.mjs"
   },

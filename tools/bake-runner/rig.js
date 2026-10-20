@@ -12,7 +12,7 @@ export const POSES = {
 // How far each segment reaches toward the character's front (+Z), so arms clear the torso instead of cutting through it.
 const DEPTH = { up: [0.15, -0.1], down: [0.55, 1.1], left: [0.1, 0.35] };
 
-export async function loadRunner(url) {
+export async function loadRig(url) {
   const gltf = await new GLTFLoader().loadAsync(url);
   const bones = {};
   let body;
@@ -43,7 +43,7 @@ function turn(bone, rotation) {
   bone.updateMatrixWorld(true);
 }
 
-function aim(bone, child, target) {
+export function aim(bone, child, target) {
   bone.updateWorldMatrix(true, false);
   bone.getWorldPosition(a); child.getWorldPosition(b);
   turn(bone, q.setFromUnitVectors(b.sub(a).normalize(), target));
@@ -51,7 +51,7 @@ function aim(bone, child, target) {
 
 // Rolls the forearm about its own axis until the palm faces the target as nearly as a straight wrist allows, then
 // bends the wrist the rest of the way, up to flex.
-function placeFist(fore, hand, axis, target, flex) {
+export function placeHand(fore, hand, axis, target, flex) {
   const want = d.fromArray(target).normalize();
   hand.getWorldQuaternion(w);
   const palm = a.fromArray(hand.userData.palm).applyQuaternion(w).addScaledVector(axis, -a.dot(axis));
@@ -73,6 +73,6 @@ export function poseArms(r, pose) {
     const foreDir = dirOf(p[sd][1], dz[1]);
     aim(arm, fore, dirOf(p[sd][0], dz[0]));
     aim(fore, hand, foreDir);
-    placeFist(fore, hand, foreDir, PALMS[pose][sd], PALMS[pose].flex);
+    placeHand(fore, hand, foreDir, PALMS[pose][sd], PALMS[pose].flex);
   }
 }

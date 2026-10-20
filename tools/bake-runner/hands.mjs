@@ -1,7 +1,7 @@
 import { NodeIO } from '@gltf-transform/core';
 
-// Meshy's A-pose rig has no finger bones and rebuilds hands open even from a fists concept, so the fingers are
-// folded in the mesh itself: hand-weighted vertices past the knuckle line bend in bind space at three joints, given as
+// Records which way each palm faces, and for fists folds the fingers. Meshy's A-pose rig has no finger bones and
+// rebuilds hands open even from a fists concept, so the fingers are folded in the mesh itself: hand-weighted vertices past the knuckle line bend in bind space at three joints, given as
 // [position along the finger, bend in degrees]. Folding at joints rather than along one arc lays the fingertips
 // against the palm, so the fist has no hole through it.
 const KNUCKLE = 0.5, JOINTS = [[0.06, 90], [0.45, 100], [0.75, 70]], BLEND = 0.06, STEPS = 256;
@@ -36,7 +36,7 @@ function palmNormal(pts) {
   return v;
 }
 
-export async function curlFists(glb) {
+export async function shapeHands(glb, { fists }) {
   const io = new NodeIO(), doc = await io.readBinary(glb);
   const skin = doc.getRoot().listSkins()[0], joints = skin.listJoints(), ibm = skin.getInverseBindMatrices();
   const prim = doc.getRoot().listMeshes()[0].listPrimitives()[0];
@@ -53,6 +53,7 @@ export async function curlFists(glb) {
     // The palm side in the joint's own frame, which rig.js reads as bone.userData.palm to turn the curled fingers toward the camera.
     const m = ibm.getElement(ji, []);
     joints[ji].setExtras({ ...joints[ji].getExtras(), palm: norm([0, 1, 2].map(k => -(m[k] * Nn[0] + m[k + 4] * Nn[1] + m[k + 8] * Nn[2]))) });
+    if (!fists) continue;
     // Spread fingers make the hand about as wide as it is long, so the finger axis comes from the forearm, not PCA.
     const fore = sub(wrist, origin(side + 'ForeArm')), U = norm(fore.map((x, k) => x - dot(fore, Nn) * Nn[k])), V = norm(cross(Nn, U));
     const local = i => { const d = sub(P.getElement(i, []), wrist); return [dot(d, U), dot(d, V), dot(d, Nn)]; };
