@@ -888,8 +888,7 @@ function drawMeme() {
   ctx.restore();
 
   const size = Math.min(52, W * 0.085);
-  memeCaption(meme.top, meme.head.y - fh * 0.45 - size * 0.75, 0.55, size, e);
-  memeCaption(meme.bottom, meme.head.y + fh * 0.55 + size * 0.85, 0.75, size, e);
+  memeCaption(meme.caption, meme.head.y - fh * 0.45 - size * 0.75, 0.55, size, e);
 }
 
 function memeCaption(text, y, delay, size, e) {
@@ -1072,7 +1071,7 @@ function crash(w) {
   if (game.crew.length > 0) {
     const dropped = game.crew.splice(0, game.crew.length - Math.floor(game.crew.length / 2));
     dropped.forEach((m, i) => { const sd = i % 2 ? 1 : -1; m.pivot = DROP_PIVOT; dropouts.push({ m, vx: sd * (320 + Math.random() * 220), vz: -120, vy: DROP_HOP, spin: sd * DROP_SPIN, life: 1.2 }); });
-    meme = { m: dropped[0], age: 0, life: MEME_LIFE, head: null, top: MEME_LINES[Math.floor(Math.random() * MEME_LINES.length)], bottom: game.crew.length ? 'HALF THE LINE QUIT' : 'THE WHOLE LINE QUIT' };
+    meme = { m: dropped[0], age: 0, life: MEME_LIFE, head: null, caption: MEME_LINES[Math.floor(Math.random() * MEME_LINES.length)] };
     sfx.meme();
   } else {
     game.hearts--;
