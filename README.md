@@ -1,4 +1,4 @@
-# Pump Parade
+# Gym Rush
 
 A raccoon has stolen the town's only tub of protein. You and your gym crew chase it down winding, procedurally built roads through four districts, striking the pose cut into each wall to burst through it.
 

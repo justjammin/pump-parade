@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';
 
-const NAME = 'Pump Parade';
+const NAME = 'Gym Rush';
 const DESCRIPTION = 'Chase a protein-stealing raccoon down winding roads and strike the pose cut into each wall.';
 const BG = '#1d0f2e';
 
