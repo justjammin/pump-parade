@@ -1627,16 +1627,17 @@ const sfx = {
     src.buffer = muscleVoices[Math.floor(Math.random() * muscleVoices.length)]; g.gain.value = 0.8;
     src.connect(g); g.connect(master); verbed(g); src.start();
   },
-  // One take per dropped lifter, no take twice, each a random 0.05 to 0.4 s after the last so they overlap like a crowd.
+  // One take per dropped lifter, no take twice, one voice at a time with a random 0.1 to 0.4 s pause before each.
   wince: n => {
     if (!ac || muted) return;
     const takes = [...winceVoices];
-    let when = ac.currentTime + 0.05;
+    let when = ac.currentTime;
     for (let i = 0; i < n && takes.length; i++) {
-      when += 0.05 + Math.random() * 0.35;
+      when += 0.1 + Math.random() * 0.3;
       const src = ac.createBufferSource(), g = ac.createGain();
       src.buffer = takes.splice(Math.floor(Math.random() * takes.length), 1)[0]; g.gain.value = 0.6;
       src.connect(g); g.connect(master); verbed(g); src.start(when);
+      when += src.buffer.duration;
     }
   },
 };
