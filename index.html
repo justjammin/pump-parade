@@ -336,9 +336,11 @@ const HOLD = 0.62, PERFECT_WIN = 0.24, ZMAX = 1150, DPERSP = 260, ROAD_HALF = 30
 const WALL_HALF = 270, WALL_H = 238;
 const MAX_HEARTS = 3, MAX_CREW = 8, START_CREW = 2, CREW_FIRST = 62, CREW_GAP = 46, WALLS_PER_STAGE = 8;
 // Walls cleared without a crash until the speed feel peaks. It changes the look and sound only, never speed().
-const FLOW_WALLS = 10, POST_GAP = 65, WIND_VOL = 0.12;
+// HYPE_WALLS clean walls bring in the hype music and pull the camera back by HYPE_ZOOM for HYPE_PULSE seconds.
+const FLOW_WALLS = 10, HYPE_WALLS = 5, POST_GAP = 65;
+const HYPE_ZOOM = 0.07, HYPE_PULSE = 0.9;
 // Gain of each soundtrack stem, by name, in each part of the game; a stem a row leaves out is silent there.
-// A run climbs from 'run' to 'hype' at half of FLOW_WALLS clean walls and to 'peak' at FLOW_WALLS, and a crash drops it back.
+// A run climbs from 'run' to 'hype' at HYPE_WALLS clean walls and to 'peak' at FLOW_WALLS, and a crash drops it back.
 // The stems arrive at the producer's mix levels, where the chords and hats sit far under the drums, so they need large gains.
 const MUSIC_MIX = {
   idle: { drums: 1 },
@@ -361,7 +363,7 @@ let walls = [], particles = [], popups = [], dropouts = [], chips = [], ghosts =
 let player, game, stageMarks = [{ d: -Infinity, idx: 0 }];
 let hitstop = 0, timeScale = 1, flash = 0, flashCol = '#fff', introT = 0, skyMix = 1, prevStage = 0, bubble = null, meme = null;
 let shownScore = 0, scoreTarget = 0, meterTarget = 0, meterFront = 0, meterBack = 0, meterHold = 0, lastHearts = MAX_HEARTS, lastStreak = 0, flow = 0;
-const cam = { trauma: 0, zoom: 0, zoomV: 0, bank: 0, letterbox: 0 };
+const cam = { trauma: 0, zoom: 0, zoomV: 0, bank: 0, letterbox: 0, hype: 0 };
 const thief = { hop: 0, hopV: 0 };
 const roadOff = new Float32Array(NROAD);
 const sceneryCache = new Map();
@@ -939,7 +941,9 @@ function drawScene() {
   buildRoad();
   ctx.save();
   const a = (cam.trauma * cam.trauma + flow * 0.05) * motion;
-  const zoom = 1 + (cam.zoom - flow * 0.06) * motion + cam.letterbox * 0.05 - clamp((speed() - 380) / 500, 0, 1) * 0.04;
+  // The hype pull-back eases out fast and drifts back in, peaking a third of the way through.
+  const hype = 6.75 * cam.hype * cam.hype * (1 - cam.hype) * HYPE_ZOOM;
+  const zoom = 1 + (cam.zoom - flow * 0.06 - hype) * motion + cam.letterbox * 0.05 - clamp((speed() - 380) / 500, 0, 1) * 0.04;
   const pivotY = lerp(horizonY, feetY, 0.6);
   ctx.translate(cx + a * 30 * wobble(rt * 31.7), pivotY + a * 24 * wobble(rt * 27.3 + 5));
   ctx.rotate(cam.bank + a * 0.04 * wobble(rt * 19.1 + 9));
@@ -1156,6 +1160,7 @@ function resolveWall(w) {
     const mult = 1 + game.crew.length;
     const pts = (perfect ? 300 : 100) * mult;
     game.score += pts; game.busted++; game.clean++; player.spent = true;
+    if (game.clean === HYPE_WALLS) cam.hype = 1;
     if (perfect) {
       game.perfects++; game.streak++;
       if (game.crew.length < MAX_CREW) {
@@ -1503,7 +1508,7 @@ function camTick(dt) {
   cam.letterbox = lerp(cam.letterbox, introT > 0 || meme ? 1 : 0, damp(6, dt));
   const flowTo = state === 'run' ? Math.min(1, game.clean / FLOW_WALLS) : 0;
   flow = lerp(flow, flowTo, damp(flowTo > flow ? 1.5 : 6, dt));
-  if (wind) { wind.g.gain.setTargetAtTime(muted ? 0 : WIND_VOL * flow * flow, ac.currentTime, 0.1); wind.f.frequency.setTargetAtTime(400 + 1100 * flow, ac.currentTime, 0.1); }
+  cam.hype = Math.max(0, cam.hype - dt / HYPE_PULSE);
 }
 
 function uiTick(dt) {
@@ -1621,11 +1626,11 @@ function gameOver() {
 }
 
 function setPaused(p) {
-  if (p && (state === 'run' || state === 'stagger')) { state = 'paused'; $('pauseScreen').hidden = false; $('resumeBtn').focus(); wind?.g.gain.setTargetAtTime(0, ac.currentTime, 0.05); }
+  if (p && (state === 'run' || state === 'stagger')) { state = 'paused'; $('pauseScreen').hidden = false; $('resumeBtn').focus(); }
   else if (!p && state === 'paused') { state = game.staggerEnd > t ? 'stagger' : 'run'; $('pauseScreen').hidden = true; }
 }
 
-let ac = null, master = null, verb = null, wind = null, music = null, muted = false;
+let ac = null, master = null, verb = null, music = null, muted = false;
 const muscleVoices = [], winceVoices = [];
 function audioInit() {
   if (ac) { ac.resume?.(); return; }
@@ -1635,11 +1640,6 @@ function audioInit() {
   for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2); }
   verb = ac.createConvolver(); verb.buffer = ir; wet.gain.value = REVERB_WET;
   verb.connect(wet); wet.connect(master);
-  const wn = ac.createBuffer(1, ac.sampleRate * 3, ac.sampleRate), wd = wn.getChannelData(0), ws = ac.createBufferSource();
-  for (let i = 0; i < wd.length; i++) wd[i] = Math.random() * 2 - 1;
-  wind = { f: ac.createBiquadFilter(), g: ac.createGain() };
-  ws.buffer = wn; ws.loop = true; wind.f.type = 'bandpass'; wind.f.Q.value = 0.7; wind.g.gain.value = 0;
-  ws.connect(wind.f); wind.f.connect(wind.g); wind.g.connect(master); ws.start();
   const bus = ac.createGain(); bus.gain.value = MUSIC_VOL; bus.connect(master);
   Promise.all(MUSIC.map(s => ac.decodeAudioData(Uint8Array.from(atob(s.uri.split(',')[1]), c => c.charCodeAt(0)).buffer))).then(bufs => {
     // One shared start time and loop end keep the stems sample-locked; the mix only ever moves their gains.
@@ -1660,7 +1660,7 @@ function mixMusic() {
   const mode = muted ? null
     : state === 'paused' ? 'paused'
     : state !== 'run' && state !== 'stagger' ? 'idle'
-    : game.clean >= FLOW_WALLS ? 'peak' : game.clean >= FLOW_WALLS / 2 ? 'hype' : 'run';
+    : game.clean >= FLOW_WALLS ? 'peak' : game.clean >= HYPE_WALLS ? 'hype' : 'run';
   if (mode === music.mode) return;
   music.mode = mode;
   const at = music.t0 + Math.ceil((ac.currentTime - music.t0) / MUSIC_BEAT) * MUSIC_BEAT;
