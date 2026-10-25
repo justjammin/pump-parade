@@ -1661,7 +1661,7 @@ const PLATFORMS = {
       GamePix.events.on('resume', () => setHush('ad', false));
       return true;
     },
-    ad: kind => (kind === 'rewarded' ? GamePix.ads.reward() : GamePix.ads.interstitial()).then(r => r.success, () => false),
+    ad: kind => (kind === 'rewarded' ? GamePix.ads.reward() : GamePix.ads.interstitial()).then(r => r.success, () => false).finally(() => setHush('ad', false)),
     happy: () => GamePix.happyMoment('new_best'),
     watchMute: set => { GamePix.events.on('soundOff', () => set(true)); GamePix.events.on('soundOn', () => set(false)); },
   },
