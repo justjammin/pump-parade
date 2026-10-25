@@ -1590,19 +1590,28 @@ function resetWorld() {
 }
 
 // Each host the game ships on is one row: how it saves, plays ads, hears gameplay start and stop, and celebrates.
-// One row is picked at boot, and the rest of the game only talks to `platform`.
+// A host row spreads `web` and overrides only what that host does. Its `init` detects the host at boot and resolves
+// true when the host is live. The rest of the game only talks to `platform`.
 const cg = () => window.CrazyGames.SDK;
+let earned = false;
+const web = {
+  autostart: false,
+  ad: () => Promise.resolve(false),
+  gameplay() {},
+  happy() {},
+  load: key => { try { return localStorage.getItem(key); } catch (e) { return null; } },
+  save: (key, value) => { try { localStorage.setItem(key, value); } catch (e) {} },
+  watchMute() {},
+};
 const PLATFORMS = {
-  web: {
-    autostart: false,
-    ad: () => Promise.resolve(false),
-    gameplay() {},
-    happy() {},
-    load: key => { try { return localStorage.getItem(key); } catch (e) { return null; } },
-    save: (key, value) => { try { localStorage.setItem(key, value); } catch (e) {} },
-    watchMute() {},
-  },
+  web,
   crazygames: {
+    init: async () => {
+      const sdk = window.CrazyGames?.SDK;
+      if (!sdk) return false;
+      await sdk.init();
+      return sdk.environment !== 'disabled';
+    },
     // Full Launch on CrazyGames asks for the game to open straight into play, so the title card is skipped.
     autostart: true,
     // Resolves whether the ad played. Sound goes off only once an ad actually starts, and a failed ad (blocked,
@@ -1618,17 +1627,65 @@ const PLATFORMS = {
     save: (key, value) => { try { cg().data.setItem(key, value); } catch (e) {} },
     watchMute: set => { set(cg().game.settings.muteAudio); cg().game.addSettingsChangeListener(s => set(s.muteAudio)); },
   },
+  gamedistribution: {
+    ...web,
+    // The SDK reads GD_OPTIONS.onEvent as it loads, and the handlers need the game's closures, so the build leaves
+    // the script out and it is injected here once the handlers are in place.
+    init: () => new Promise(done => {
+      if (!window.GD_OPTIONS) return done(false);
+      GD_OPTIONS.onEvent = ({ name }) => {
+        if (name === 'SDK_READY') done(true);
+        else if (name === 'SDK_ERROR') done(false);
+        else if (name === 'SDK_GAME_PAUSE') setHush('ad', true);
+        else if (name === 'SDK_GAME_START') setHush('ad', false);
+        else if (name === 'SDK_REWARDED_WATCH_COMPLETE') earned = true;
+      };
+      const script = document.createElement('script');
+      script.src = 'https://html5.api.gamedistribution.com/main.min.js';
+      script.onerror = () => done(false);
+      document.head.append(script);
+    }),
+    // showAd resolves even when nothing fills, so only a rewarded ad needs the watch-complete event to say it paid out.
+    ad: kind => {
+      const rewarded = kind === 'rewarded';
+      earned = false;
+      return gdsdk.showAd(rewarded ? 'rewarded' : 'interstitial').then(() => !rewarded || earned, () => false).finally(() => setHush('ad', false));
+    },
+  },
+  gamepix: {
+    ...web,
+    init: async () => {
+      if (!window.GamePix) return false;
+      await GamePix.lifecycle.loaded();
+      GamePix.events.on('pause', () => { setHush('ad', true); setPaused(true); });
+      GamePix.events.on('resume', () => setHush('ad', false));
+      return true;
+    },
+    ad: kind => (kind === 'rewarded' ? GamePix.ads.reward() : GamePix.ads.interstitial()).then(r => r.success, () => false),
+    happy: () => GamePix.happyMoment('new_best'),
+    watchMute: set => { GamePix.events.on('soundOff', () => set(true)); GamePix.events.on('soundOn', () => set(false)); },
+  },
+  telegram: {
+    ...web,
+    // Saves stay on localStorage: CloudStorage is async and `load` has to answer at once.
+    init: async () => {
+      const app = window.Telegram?.WebApp;
+      if (!app?.initData) return false;
+      app.ready();
+      app.expand();
+      if (app.isVersionAtLeast('7.7')) app.disableVerticalSwipes();
+      app.onEvent('deactivated', () => setPaused(true));
+      return true;
+    },
+    happy: () => { const app = window.Telegram.WebApp; if (app.isVersionAtLeast('6.1')) app.HapticFeedback.notificationOccurred('success'); },
+  },
 };
 let platform = PLATFORMS.web, playing = false;
 
-// Only the CrazyGames build loads the SDK. Without it, or when the SDK hangs or reports itself disabled (it runs
-// only on CrazyGames and localhost), the game stays on the web row.
-async function hostPlatform() {
-  const sdk = window.CrazyGames?.SDK;
-  if (!sdk) return PLATFORMS.web;
-  try { await Promise.race([sdk.init(), new Promise((_, fail) => setTimeout(fail, 5000))]); } catch (e) { return PLATFORMS.web; }
-  return sdk.environment === 'disabled' ? PLATFORMS.web : PLATFORMS.crazygames;
-}
+// Every host row probes at once, and the first to report live wins. A host that is absent, throws or hangs past
+// five seconds counts as not live, and the game stays on the web row.
+const probe = async host => ((await Promise.race([host.init(), new Promise((_, fail) => setTimeout(fail, 5000))])) ? host : Promise.reject());
+const hostPlatform = () => Promise.any(Object.values(PLATFORMS).filter(p => p.init).map(probe)).catch(() => PLATFORMS.web);
 
 function syncGameplay() {
   const live = state === 'run' || state === 'stagger';

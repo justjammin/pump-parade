@@ -8,6 +8,20 @@ const BG = '#1d0f2e';
 const SITE = 'https://justjammin.github.io/pump-parade/';
 // Artwork made by tools/store-art: published name in dist/web → file in art/.
 const WEB_ART = { 'icon-192.png': 'icon-192.png', 'icon-512.png': 'icon-512.png', 'apple-touch-icon.png': 'apple-touch-icon.png', 'social.jpg': 'social-1200x630.jpg' };
+// Per-host builds. `head` gives the host's tags, from the value of `env` when it needs one, and `zip` is its upload. A host without a zip is a page to host.
+// The game picks its platform row at boot, so a host build only has to load that host's own script.
+const HOSTS = {
+  itch: { zip: 'pump-parade-itch.zip' },
+  crazygames: { head: () => '<script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>\n', zip: 'gym-rush-crazygames.zip' },
+  gamepix: {
+    head: () => `<script>window.GamePixConfig = { lifecycle: 'manual' };</script>
+<script src="https://integration.gamepix.com/sdk/v3/gamepix.sdk.js"></script>
+`,
+    zip: 'gym-rush-gamepix.zip',
+  },
+  gamedistribution: { env: 'GD_GAME_ID', head: id => `<script>window.GD_OPTIONS = { gameId: ${JSON.stringify(id)} };</script>\n`, zip: 'gym-rush-gamedistribution.zip' },
+  telegram: { head: () => '<script src="https://telegram.org/js/telegram-web-app.js?64"></script>\n' },
+};
 
 const source = readFileSync('index.html', 'utf8');
 const split = source.indexOf('\n<div id="app">');
@@ -76,8 +90,6 @@ const manifest = {
 
 rmSync('dist', { recursive: true, force: true });
 mkdirSync('dist/web', { recursive: true });
-mkdirSync('dist/itch', { recursive: true });
-mkdirSync('dist/crazygames', { recursive: true });
 
 writeFileSync('dist/web/index.html', page({
   headExtra: `<meta name="theme-color" content="${BG}">
@@ -104,15 +116,15 @@ writeFileSync('dist/web/manifest.webmanifest', JSON.stringify(manifest, null, 2)
 writeFileSync('dist/web/sw.js', serviceWorker);
 for (const [name, file] of Object.entries(WEB_ART)) copyFileSync(`art/${file}`, `dist/web/${name}`);
 
-writeFileSync('dist/itch/index.html', page());
+const built = [], skipped = [];
+for (const [host, { env, head: tags, zip }] of Object.entries(HOSTS)) {
+  const value = env && process.env[env];
+  if (env && !value) { skipped.push(`${host} (set ${env})`); continue; }
+  mkdirSync(`dist/${host}`, { recursive: true });
+  writeFileSync(`dist/${host}/index.html`, page({ headExtra: tags?.(value) }));
+  if (zip) execFileSync('zip', ['-q', '-X', `../${zip}`, 'index.html'], { cwd: `dist/${host}` });
+  built.push(`dist/${host}` + (zip ? ` + dist/${zip}` : ''));
+}
 copyFileSync('art/itch-cover-630x500.jpg', 'dist/itch-cover.jpg');
-execFileSync('zip', ['-q', '-X', '../pump-parade-itch.zip', 'index.html'], { cwd: 'dist/itch' });
 
-// CrazyGames wants its SDK in the head. The game picks the CrazyGames platform row once the SDK starts.
-writeFileSync('dist/crazygames/index.html', page({
-  headExtra: `<script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
-`,
-}));
-execFileSync('zip', ['-q', '-X', '../gym-rush-crazygames.zip', 'index.html'], { cwd: 'dist/crazygames' });
-
-console.log(`Built ${version}: dist/web (installable web app), dist/itch + dist/pump-parade-itch.zip (itch.io), dist/itch-cover.jpg, dist/crazygames + dist/gym-rush-crazygames.zip (CrazyGames)`);
+console.log(`Built ${version}: dist/web (installable web app), ${built.join(', ')}, dist/itch-cover.jpg` + (skipped.length ? `. Skipped ${skipped.join(', ')}` : ''));
