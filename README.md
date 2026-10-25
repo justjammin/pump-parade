@@ -35,9 +35,10 @@ npm run build
 - `dist/web/`: the installable web app (manifest, icons, social preview image, offline service worker). Every push to `main` deploys it to GitHub Pages.
 - `dist/itch/` and `dist/pump-parade-itch.zip`: the itch.io HTML5 build.
 - `dist/itch-cover.jpg`: a 630×500 cover image for the itch.io page.
-- `dist/crazygames/` and `dist/gym-rush-crazygames.zip`: the CrazyGames build, which loads the CrazyGames SDK.
+- `dist/crazygames/`, `dist/gamepix/` and `dist/gamedistribution/`, each zipped as `dist/gym-rush-<portal>.zip`: portal builds that load the portal's SDK. The GameDistribution build needs the game ID from the GameDistribution developer portal, as `GD_GAME_ID=<id> npm run build`; without it, that build is skipped.
+- `dist/telegram/`: the Telegram Mini App page.
 
-Each host is a row in the `PLATFORMS` table in `index.html`: how it saves the best score, plays ads, reports gameplay starting and stopping, and celebrates a new best. The game picks the CrazyGames row when the SDK is loaded and running, and the web row everywhere else.
+Each host is a row in the `PLATFORMS` table in `index.html`: how it saves the best score, plays ads, reports gameplay starting and stopping, and celebrates a new best. A host row starts from the web row and overrides only what its host does, and its `init` checks at boot whether the game is running on that host. The game uses the first host that reports itself live, and the web row everywhere else. A new host is one row in `PLATFORMS` and one entry in the `HOSTS` table in `build.mjs`.
 
 ## Store art
 
@@ -60,6 +61,33 @@ On CrazyGames the game opens straight into a run, reports gameplay start and sto
 To try the CrazyGames build locally, serve `dist/crazygames` on `localhost` or `127.0.0.1`. The SDK runs in local mode there: ads show as a placeholder overlay and every SDK call is logged to the console.
 
 See `docs/distribution.md` for where CrazyGames fits among the other channels.
+
+## Publish on GameDistribution
+
+GameDistribution pauses and mutes the game around its ads, and **March again** asks for an interstitial.
+
+1. In the GameDistribution developer portal, create the game and copy its game ID.
+2. Build with `GD_GAME_ID=<id> npm run build` and upload `dist/gym-rush-gamedistribution.zip`.
+3. Open the game in the portal's preview and watch the pre-roll ad through once. This activates the SDK integration.
+4. Before the rewarded "keep going" continue ships, turn on **Rewarded Ads** for the game in the portal. Without it the game cannot request rewarded ads.
+
+To see fake ads while testing, run `gdsdk.openConsole()` in the browser console. Clear the page's local storage to turn the console off again.
+
+## Publish on GamePix
+
+GamePix pauses and mutes the game around its ads and follows the player's GamePix sound setting. **March again** asks for an interstitial, and a new best score is reported as a happy moment. GamePix syncs the best score itself, from local storage.
+
+1. Upload `dist/gym-rush-gamepix.zip` to the GamePix partner portal.
+2. Add the covers, screenshots, description and controls.
+
+Served on `localhost`, the SDK simulates the GamePix player, with a placeholder overlay for each ad. Query parameters pick the ad results, for example `?gpx_ad=nofill&gpx_reward=cancel`.
+
+## Publish as a Telegram Mini App
+
+Inside Telegram the game expands to full height, turns off swipe-to-close so poses don't close it, pauses when the player minimizes it, and buzzes on a new best score. Opened anywhere else, the same page runs as the web game.
+
+1. Host `dist/telegram/` at an HTTPS address of its own. Keep it out of the web app's folder on GitHub Pages, because the web app's offline service worker covers that folder and would cache this page in place of the web app.
+2. Create a bot with BotFather, then create a Mini App for it with `/newapp` and give it that address.
 
 ## Publish on itch.io
 

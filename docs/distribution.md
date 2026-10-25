@@ -39,12 +39,13 @@ Still missing: a 15–30 second gameplay video in landscape and vertical. CrazyG
 ## Weeks 3–6: more portals
 
 - **CrazyGames Full Launch.** Needs the SDK with gameplay events and ads, which this branch adds, plus the rewarded "keep going" continue and the energy currency from Phase 1. The CrazyGames build starts straight in gameplay, as Full Launch requires.
-- **GameDistribution.** Non-exclusive, and syndicates to many portals. It needs its own SDK row and build target. A competitor's comparison lists a 33% revenue share and a rule that the copy must match the latest version published elsewhere; confirm both in GameDistribution's own terms.
-- **One or two others** from Newgrounds, GamePix and Y8, each as one more platform row. Not all of them.
+- **GameDistribution.** Non-exclusive, and syndicates to many portals. Its platform row and build target are in place; the build needs the game ID from the GameDistribution portal. A competitor's comparison lists a 33% revenue share and a rule that the copy must match the latest version published elsewhere; confirm both in GameDistribution's own terms.
+- **GamePix.** Its platform row and build target are in place.
+- **Newgrounds** needs no SDK and can take the itch.io build. Y8 waits unless the others underperform.
 
 ## Weeks 4–8: games inside other apps
 
-- **Telegram:** a mini app launched from a bot.
+- **Telegram:** a mini app launched from a bot. The page is `dist/telegram/`, and its platform row is in place.
 - **Discord:** an Activity, which needs a Discord application and its client ID.
 - **YouTube Playables and Reddit:** applications to send; no code until accepted.
 
