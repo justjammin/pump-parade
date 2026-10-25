@@ -1,0 +1,14 @@
+{
+  "name": "pump-parade-store-art",
+  "private": true,
+  "type": "module",
+  "description": "Generates the store and portal artwork with the Higgsfield CLI, and captioned gameplay screenshots.",
+  "scripts": {
+    "art": "node art.mjs",
+    "shots": "node shots.mjs"
+  },
+  "dependencies": {
+    "playwright-core": "1.56.1",
+    "sharp": "0.34.4"
+  }
+}

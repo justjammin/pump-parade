@@ -2,3 +2,4 @@ dist/
 .claude/
 .DS_Store
 node_modules/
+tools/store-art/raw/
