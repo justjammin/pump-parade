@@ -35,6 +35,9 @@ npm run build
 - `dist/web/`: the installable web app (manifest, icons, social preview image, offline service worker). Every push to `main` deploys it to GitHub Pages.
 - `dist/itch/` and `dist/pump-parade-itch.zip`: the itch.io HTML5 build.
 - `dist/itch-cover.jpg`: a 630×500 cover image for the itch.io page.
+- `dist/crazygames/` and `dist/gym-rush-crazygames.zip`: the CrazyGames build, which loads the CrazyGames SDK.
+
+Each host is a row in the `PLATFORMS` table in `index.html`: how it saves the best score, plays ads, reports gameplay starting and stopping, and celebrates a new best. The game picks the CrazyGames row when the SDK is loaded and running, and the web row everywhere else.
 
 ## Store art
 
@@ -44,6 +47,19 @@ npm run build
 - `CHROMIUM=<path> npm run shots` plays the real game on a phone-sized screen with an autopilot and frames four moments with captions, as 1080×1920 store screenshots.
 
 Stores require screenshots to show the real game, so only the key art is generated.
+
+## Publish on CrazyGames
+
+On CrazyGames the game opens straight into a run, reports gameplay start and stop, saves the best score through the SDK, mutes when the CrazyGames sound setting is off, and asks for a midgame ad when the player taps **March again**. The SDK spaces those ads out itself, and if an ad fails or is blocked the next run starts anyway.
+
+1. In the CrazyGames developer portal, submit a new HTML5 game and upload `dist/gym-rush-crazygames.zip`.
+2. Upload the covers `art/crazygames-landscape-1920x1080.jpg`, `art/crazygames-portrait-800x1200.jpg` and `art/crazygames-square-800x800.jpg`.
+3. Turn on **Progress Save**. Without it the SDK's data module is off, and the best score is not kept between visits.
+4. Fill in the description and the controls from the table above, and add a gameplay video.
+
+To try the CrazyGames build locally, serve `dist/crazygames` on `localhost` or `127.0.0.1`. The SDK runs in local mode there: ads show as a placeholder overlay and every SDK call is logged to the console.
+
+See `docs/distribution.md` for where CrazyGames fits among the other channels.
 
 ## Publish on itch.io
 

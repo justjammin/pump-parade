@@ -368,7 +368,6 @@ const thief = { hop: 0, hopV: 0 };
 const roadOff = new Float32Array(NROAD);
 const sceneryCache = new Map();
 let best = 0;
-try { best = +localStorage.getItem('pumpParadeBest') || 0; } catch (e) {}
 
 function marchArms(ph) {
   const sw = Math.sin(ph) * 0.16;
@@ -1531,7 +1530,7 @@ function bumpEl(el) { el.classList.remove('bump'); void el.offsetWidth; el.class
 function tick(rdt) {
   rt += rdt;
   if (hitstop > 0) hitstop -= rdt;
-  else if (state === 'over') { t += rdt; updatePlayer(rdt * 0.3); updateParticles(rdt); updateAmbient(rdt); }
+  else if (state === 'over' || state === 'ad') { t += rdt; updatePlayer(rdt * 0.3); updateParticles(rdt); updateAmbient(rdt); }
   else update(rdt * timeScale * lerp(1, MEME_SLOW, memeEnv()));
   camTick(rdt);
   uiTick(rdt);
@@ -1543,6 +1542,7 @@ function frame(ts) {
   lastTs = ts;
   if (state !== 'paused') tick(rdt);
   mixMusic();
+  syncGameplay();
   drawScene();
   requestAnimationFrame(frame);
 }
@@ -1589,6 +1589,52 @@ function resetWorld() {
   initAmbient(STAGES[0].weather);
 }
 
+// Each host the game ships on is one row: how it saves, plays ads, hears gameplay start and stop, and celebrates.
+// One row is picked at boot, and the rest of the game only talks to `platform`.
+const cg = () => window.CrazyGames.SDK;
+const PLATFORMS = {
+  web: {
+    autostart: false,
+    ad: () => Promise.resolve(false),
+    gameplay() {},
+    happy() {},
+    load: key => { try { return localStorage.getItem(key); } catch (e) { return null; } },
+    save: (key, value) => { try { localStorage.setItem(key, value); } catch (e) {} },
+    watchMute() {},
+  },
+  crazygames: {
+    // Full Launch on CrazyGames asks for the game to open straight into play, so the title card is skipped.
+    autostart: true,
+    // Resolves whether the ad played. Sound goes off only once an ad actually starts, and a failed ad (blocked,
+    // unfilled, on cooldown) just lets the game carry on.
+    ad: kind => new Promise(done => {
+      const end = played => { setHush('ad', false); done(played); };
+      cg().ad.requestAd(kind, { adStarted: () => setHush('ad', true), adFinished: () => end(true), adError: () => end(false) });
+    }),
+    gameplay: on => (on ? cg().game.gameplayStart() : cg().game.gameplayStop()),
+    happy: () => cg().game.happytime(),
+    // The data module throws unless Progress Save is turned on in the CrazyGames submission.
+    load: key => { try { return cg().data.getItem(key); } catch (e) { return null; } },
+    save: (key, value) => { try { cg().data.setItem(key, value); } catch (e) {} },
+    watchMute: set => { set(cg().game.settings.muteAudio); cg().game.addSettingsChangeListener(s => set(s.muteAudio)); },
+  },
+};
+let platform = PLATFORMS.web, playing = false;
+
+// Only the CrazyGames build loads the SDK. Without it, or when the SDK hangs or reports itself disabled (it runs
+// only on CrazyGames and localhost), the game stays on the web row.
+async function hostPlatform() {
+  const sdk = window.CrazyGames?.SDK;
+  if (!sdk) return PLATFORMS.web;
+  try { await Promise.race([sdk.init(), new Promise((_, fail) => setTimeout(fail, 5000))]); } catch (e) { return PLATFORMS.web; }
+  return sdk.environment === 'disabled' ? PLATFORMS.web : PLATFORMS.crazygames;
+}
+
+function syncGameplay() {
+  const live = state === 'run' || state === 'stagger';
+  if (live !== playing) { playing = live; platform.gameplay(live); }
+}
+
 function start() {
   audioInit();
   game = newGame(); player = newLifter(PLAYER_COLORS, 0, 0, 0);
@@ -1609,7 +1655,7 @@ function start() {
 function gameOver() {
   state = 'over'; timeScale = 1; popups = []; bubble = null;
   scoreTarget = game.score; chips = [];
-  if (game.score > best) { best = game.score; try { localStorage.setItem('pumpParadeBest', String(best)); } catch (e) {} }
+  if (game.score > best) { if (best) platform.happy(); best = game.score; platform.save('pumpParadeBest', String(best)); }
   $('overStage').textContent = `STAGE ${game.level} · ${STAGES[game.district].name.toUpperCase()}`;
   $('oScore').textContent = game.score.toLocaleString();
   $('oWalls').textContent = game.busted;
@@ -1625,6 +1671,13 @@ function gameOver() {
   $('againBtn').focus();
 }
 
+// Between runs is where portals allow a midgame ad. The `ad` state keeps a second press from starting a run while it plays.
+function marchAgain() {
+  if (state !== 'over') return;
+  state = 'ad';
+  platform.ad('midgame').then(start);
+}
+
 function setPaused(p) {
   if (p && (state === 'run' || state === 'stagger')) { state = 'paused'; $('pauseScreen').hidden = false; $('resumeBtn').focus(); }
   else if (!p && state === 'paused') { state = game.staggerEnd > t ? 'stagger' : 'run'; $('pauseScreen').hidden = true; }
@@ -1632,9 +1685,13 @@ function setPaused(p) {
 
 let ac = null, master = null, verb = null, music = null, muted = false;
 const muscleVoices = [], winceVoices = [];
+// Reasons the host needs silence (an ad playing, its own mute setting). The master gain sits at 0 while any hold,
+// apart from the player's own sound toggle.
+const hush = new Set(), masterGain = () => (hush.size ? 0 : 0.6);
+function setHush(reason, on) { hush[on ? 'add' : 'delete'](reason); if (master) master.gain.value = masterGain(); }
 function audioInit() {
   if (ac) { ac.resume?.(); return; }
-  try { ac = new (window.AudioContext || window.webkitAudioContext)(); master = ac.createGain(); master.gain.value = 0.6; master.connect(ac.destination); } catch (e) { ac = null; return; }
+  try { ac = new (window.AudioContext || window.webkitAudioContext)(); master = ac.createGain(); master.gain.value = masterGain(); master.connect(ac.destination); } catch (e) { ac = null; return; }
   // Hall reverb for the drop-out meme, the winces and the stage-clear shout: a convolver over a decaying stereo-noise impulse, mixed back into master.
   const len = Math.floor(ac.sampleRate * REVERB_SECONDS), ir = ac.createBuffer(2, len, ac.sampleRate), wet = ac.createGain();
   for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2); }
@@ -1729,14 +1786,14 @@ addEventListener('keydown', e => {
   if (pose && !e.repeat) { strike(pose); return; }
   if (e.code === 'KeyP' || e.code === 'Escape') { setPaused(state !== 'paused'); return; }
   if (e.code === 'KeyM') { toggleMute(); return; }
-  if ((e.code === 'Enter' || e.code === 'Space') && (state === 'title' || state === 'over') && !e.repeat && !(document.activeElement instanceof HTMLButtonElement)) start();
+  if ((e.code === 'Enter' || e.code === 'Space') && (state === 'title' || state === 'over') && !e.repeat && !(document.activeElement instanceof HTMLButtonElement)) (state === 'title' ? start : marchAgain)();
 });
 
 function toggleMute() { muted = !muted; $('muteBtn').textContent = muted ? 'Sound off' : 'Sound on'; }
 $('muteBtn').addEventListener('click', e => { e.currentTarget.blur(); toggleMute(); });
 $('pauseBtn').addEventListener('click', e => { e.currentTarget.blur(); setPaused(state !== 'paused'); });
 $('startBtn').addEventListener('click', start);
-$('againBtn').addEventListener('click', start);
+$('againBtn').addEventListener('click', marchAgain);
 $('resumeBtn').addEventListener('click', () => setPaused(false));
 document.addEventListener('visibilitychange', () => { if (document.hidden) { setPaused(true); ac?.suspend(); } else ac?.resume(); });
 addEventListener('blur', () => setPaused(true));
@@ -1748,10 +1805,16 @@ document.querySelectorAll('.card h1').forEach(h => {
   h.innerHTML = `<span aria-hidden="true">${[...text].map((c, i) => c === ' ' ? ' ' : `<span class="ch" style="--i:${i}">${c}</span>`).join('')}</span>`;
 });
 
-$('bestTitle').textContent = bestText();
 resize(); resetWorld(); initSpeedLines(); hud(); drawIcons();
 meterTarget = meterFront = meterBack = START_CREW / MAX_CREW;
 document.fonts?.ready.then(() => { drawIcons(); resize(); });
 requestAnimationFrame(frame);
+hostPlatform().then(p => {
+  platform = p; playing = false;
+  best = +platform.load('pumpParadeBest') || 0;
+  $('bestTitle').textContent = bestText();
+  platform.watchMute(on => setHush('host', on));
+  if (platform.autostart && state === 'title') start();
+});
 })();
 </script>

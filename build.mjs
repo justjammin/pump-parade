@@ -77,6 +77,7 @@ const manifest = {
 rmSync('dist', { recursive: true, force: true });
 mkdirSync('dist/web', { recursive: true });
 mkdirSync('dist/itch', { recursive: true });
+mkdirSync('dist/crazygames', { recursive: true });
 
 writeFileSync('dist/web/index.html', page({
   headExtra: `<meta name="theme-color" content="${BG}">
@@ -107,4 +108,11 @@ writeFileSync('dist/itch/index.html', page());
 copyFileSync('art/itch-cover-630x500.jpg', 'dist/itch-cover.jpg');
 execFileSync('zip', ['-q', '-X', '../pump-parade-itch.zip', 'index.html'], { cwd: 'dist/itch' });
 
-console.log(`Built ${version}: dist/web (installable web app), dist/itch + dist/pump-parade-itch.zip (itch.io), dist/itch-cover.jpg`);
+// CrazyGames wants its SDK in the head. The game picks the CrazyGames platform row once the SDK starts.
+writeFileSync('dist/crazygames/index.html', page({
+  headExtra: `<script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
+`,
+}));
+execFileSync('zip', ['-q', '-X', '../gym-rush-crazygames.zip', 'index.html'], { cwd: 'dist/crazygames' });
+
+console.log(`Built ${version}: dist/web (installable web app), dist/itch + dist/pump-parade-itch.zip (itch.io), dist/itch-cover.jpg, dist/crazygames + dist/gym-rush-crazygames.zip (CrazyGames)`);
