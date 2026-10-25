@@ -38,7 +38,7 @@ Still missing: a 15–30 second gameplay video in landscape and vertical. CrazyG
 
 ## Weeks 3–6: more portals
 
-- **CrazyGames Full Launch.** Needs the SDK with gameplay events and ads, which this branch adds, plus the rewarded "keep going" continue and the energy currency from Phase 1. The CrazyGames build starts straight in gameplay, as Full Launch requires.
+- **CrazyGames Full Launch.** This is the tier that earns ad revenue, and CrazyGames picks games for it from their Basic Launch results; a developer cannot opt in. The CrazyGames build already meets the technical requirements (the SDK, gameplay events, ads through the SDK, starting straight in gameplay), so a Full Launch needs no code changes, only CrazyGames' full QA review. The rewarded "keep going" continue and energy from Phase 1 add revenue but are not requirements.
 - **GameDistribution.** Non-exclusive, and syndicates to many portals. Its platform row and build target are in place; the build needs the game ID from the GameDistribution portal. A competitor's comparison lists a 33% revenue share and a rule that the copy must match the latest version published elsewhere; confirm both in GameDistribution's own terms.
 - **GamePix.** Its platform row and build target are in place.
 - **Newgrounds** needs no SDK and can take the itch.io build. Y8 waits unless the others underperform.
