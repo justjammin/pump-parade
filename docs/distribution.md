@@ -20,14 +20,15 @@ Everything a listing needs is in `art/`, made by `tools/store-art` (see the READ
 | itch.io cover | `itch-cover-630x500.jpg` (copied to `dist/itch-cover.jpg` by the build) | itch.io |
 | Social card | `social-1200x630.jpg` (published as `social.jpg`) | Link previews |
 | Screenshots | `shot-1-smash.jpg` to `shot-4-crew.jpg`, 1080×1920 | Google Play, itch.io, portals |
+| Preview videos | `video-landscape-1920x1080.mp4`, `video-portrait-1080x1620.mp4`, silent, 18 seconds (made by `npm run video`, not committed) | CrazyGames, itch.io, Google Play promo |
 
-Still missing: a 15–30 second gameplay video in landscape and vertical. CrazyGames asks for cover videos with a submission, Google Play takes a promo video, and the same footage feeds the short-form clips.
+The preview videos follow CrazyGames' rules: no sound, under 20 seconds, opening on the static cover. The short-form clips need their own vertical 9:16 edits with sound.
 
 ## Week 0: launch on the web
 
 1. **Site.** Live at https://justjammin.github.io/pump-parade/ with the share card.
 2. **itch.io.** Upload `dist/pump-parade-itch.zip` and `dist/itch-cover.jpg`, add the screenshots, tag it (runner, casual, funny, browser) and make it public. Post devlogs there.
-3. **CrazyGames Basic Launch.** Upload `dist/gym-rush-crazygames.zip`, the three covers, a description, the controls and the gameplay video. Turn on **Progress Save** so the best score syncs through the SDK's data module. Basic Launch serves no ads; CrazyGames uses its play data to decide on Full Launch.
+3. **CrazyGames Basic Launch.** Upload `dist/gym-rush-crazygames.zip`, the three covers, the two preview videos, a description and the controls. Turn on **Progress Save** so the best score syncs through the SDK's data module. Basic Launch serves no ads; CrazyGames uses its play data to decide on Full Launch.
 4. **Discord server.** Start one for feedback and to recruit Google Play testers early (see weeks 6–10).
 
 ## Weeks 1–3: clips
