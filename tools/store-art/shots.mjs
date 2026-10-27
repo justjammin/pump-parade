@@ -18,7 +18,7 @@ const root = fileURLToPath(new URL('../../', import.meta.url)), out = join(root,
 const SHOTS = [
   { name: 'shot-2-pose', caption: ['STRIKE', 'A POSE!'], when: "game.done === 0 && walls[0] && player.pose === walls[0].pose && walls[0].z < 150" },
   { name: 'shot-1-smash', caption: ['SMASH', 'THROUGH WALLS!'], when: "popups.some(p => p.text !== 'GOOD' && p.age > 0.1 && p.age < 0.2)" },
-  { name: 'shot-3-thief', caption: ['CATCH THE', 'PROTEIN THIEF!'], when: "bubble && bubble.age > 0.3 && game.level >= 2 && !popups.length" },
+  { name: 'shot-3-thief', caption: ['CATCH THE', 'PROTEIN THIEF!'], when: "bubble && bubble.age > 0.3 && game.level >= 2 && !popups.length && gatesNear().every(g => g.d - travel > thiefPos().z)" },
   { name: 'shot-4-crew', caption: ['GROW YOUR', 'GYM CREW!'], when: "game.crew.length === MAX_CREW && walls[0] && walls[0].z > 400 && popups.every(p => p.age > 0.5)" },
 ];
 // Strikes each wall's pose just before it lands, inside the perfect window, and has the thief taunt now and then
@@ -34,7 +34,7 @@ const html = readFileSync(join(root, 'index.html'), 'utf8'), end = html.lastInde
 const page = html.slice(0, end) + 'window.__dbg = c => eval(c);\n' + html.slice(end);
 const server = createServer((req, res) => {
   if (new URL(req.url, 'http://x').pathname !== '/') { res.statusCode = 404; res.end(); return; }
-  res.setHeader('Content-Type', 'text/html'); res.end(page);
+  res.setHeader('Content-Type', 'text/html; charset=utf-8'); res.end(page);
 }).listen(0, '127.0.0.1');
 await new Promise(resolve => server.once('listening', resolve));
 

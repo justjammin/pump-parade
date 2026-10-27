@@ -42,21 +42,22 @@ Each host is a row in the `PLATFORMS` table in `index.html`: how it saves the be
 
 ## Store art
 
-`art/` holds the icons, covers, feature graphic and screenshots for the site, itch.io, CrazyGames and Google Play. Two tools in `tools/store-art` make them:
+`art/` holds the icons, covers, feature graphic, screenshots and preview videos for the site, itch.io, CrazyGames and Google Play. Three tools in `tools/store-art` make them:
 
 - `npm run art` generates the key art with the Higgsfield CLI from prompts in `art.mjs`, and crops each image to its size. It needs `higgsfield auth login` first. Raw generations stay in `tools/store-art/raw/` and are reused, so a rerun spends no credits unless you pass `--force <asset>`.
 - `CHROMIUM=<path> npm run shots` plays the real game on a phone-sized screen with an autopilot and frames four moments with captions, as 1080×1920 store screenshots.
+- `CHROMIUM=<path> npm run video` plays one seeded run with the autopilot and cuts four clips from it into silent 18-second preview videos: `video-landscape-1920x1080.mp4` and `video-portrait-1080x1620.mp4`. Each opens on its CrazyGames cover. It needs ffmpeg. The run is the same every time, so the videos are rebuilt rather than committed.
 
-Stores require screenshots to show the real game, so only the key art is generated.
+Stores require screenshots and videos to show the real game, so only the key art is generated.
 
 ## Publish on CrazyGames
 
 On CrazyGames the game opens straight into a run, reports gameplay start and stop, saves the best score through the SDK, mutes when the CrazyGames sound setting is off, and asks for a midgame ad when the player taps **March again**. The SDK spaces those ads out itself, and if an ad fails or is blocked the next run starts anyway.
 
 1. In the CrazyGames developer portal, submit a new HTML5 game and upload `dist/gym-rush-crazygames.zip`.
-2. Upload the covers `art/crazygames-landscape-1920x1080.jpg`, `art/crazygames-portrait-800x1200.jpg` and `art/crazygames-square-800x800.jpg`.
+2. Upload the covers `art/crazygames-landscape-1920x1080.jpg`, `art/crazygames-portrait-800x1200.jpg` and `art/crazygames-square-800x800.jpg`, and the preview videos `art/video-landscape-1920x1080.mp4` and `art/video-portrait-1080x1620.mp4`.
 3. Turn on **Progress Save**. Without it the SDK's data module is off, and the best score is not kept between visits.
-4. Fill in the description and the controls from the table above, and add a gameplay video.
+4. Fill in the description and the controls from the table above.
 
 To try the CrazyGames build locally, serve `dist/crazygames` on `localhost` or `127.0.0.1`. The SDK runs in local mode there: ads show as a placeholder overlay and every SDK call is logged to the console.
 
